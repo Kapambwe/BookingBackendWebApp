@@ -1,0 +1,180 @@
+@page "/activities/guides"
+@using BookingBackendWebApp.Services.Activities
+@inject IActivityService ActivityService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<RadzenStack Gap="24">
+    <RadzenRow>
+        <RadzenColumn Size="6">
+            <RadzenCard>
+                <RadzenStack Gap="16">
+                    <RadzenStack Horizontal="true" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+                        <RadzenText TextStyle="TextStyle.H5">Guide Roster</RadzenText>
+                        <RadzenButton Text="Add Guide" ButtonStyle="ButtonStyle.Primary"
+                            Icon="person_add" Click="@OpenAddGuideDialog" />
+                    </RadzenStack>
+
+                    <RadzenDataGrid Data="@_guides" TItem="Guide" AllowPaging="true" AllowSorting="true" PageSize="5">
+                        <Columns>
+                            <RadzenDataGridColumn TItem="Guide" Property="Name" Title="Name" Sortable="true" />
+                            <RadzenDataGridColumn TItem="Guide" Property="Specialization" Title="Specialization" Sortable="true" />
+                            <RadzenDataGridColumn TItem="Guide" Property="IsAvailable" Title="Available" Sortable="true">
+                                <Template Context="item">
+                                    @if (item.IsAvailable)
+                                    {
+                                        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="Yes" />
+                                    }
+                                    else
+                                    {
+                                        <RadzenBadge BadgeStyle="BadgeStyle.Danger" Text="No" />
+                                    }
+                                </Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn TItem="Guide" Property="Rating" Title="Rating" Sortable="true">
+                                <Template Context="item">
+                                    @item.Rating.ToString("F1") / 5.0
+                                </Template>
+                            </RadzenDataGridColumn>
+                        </Columns>
+                    </RadzenDataGrid>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+
+        <RadzenColumn Size="6">
+            <RadzenCard>
+                <RadzenStack Gap="16">
+                    <RadzenText TextStyle="TextStyle.H5">Assignment Grid</RadzenText>
+
+                    <RadzenDataGrid Data="@_assignments" TItem="AssignmentDisplay"
+                        AllowPaging="true" AllowSorting="true" PageSize="10">
+                        <Columns>
+                            <RadzenDataGridColumn TItem="AssignmentDisplay" Property="ActivityName" Title="Activity" Sortable="true" />
+                            <RadzenDataGridColumn TItem="AssignmentDisplay" Property="GuideName" Title="Guide" Sortable="true" />
+                            <RadzenDataGridColumn TItem="AssignmentDisplay" Property="ScheduledDate" Title="Date" Sortable="true">
+                                <Template Context="item">
+                                    @item.ScheduledDate.ToShortDateString()
+                                </Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn TItem="AssignmentDisplay" Property="StartTime" Title="Time" Sortable="true" />
+                            <RadzenDataGridColumn TItem="AssignmentDisplay" Title="Actions">
+                                <Template Context="item">
+                                    <RadzenStack Horizontal="true" Gap="8">
+                                        <RadzenButton ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small"
+                                            Icon="swap_horiz" Text="Assign"
+                                            Click="@(() => OpenAssignDialog(item))" />
+                                        <RadzenButton ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small"
+                                            Icon="close" Text="Unassign"
+                                            Click="@(() => UnassignGuide(item))" />
+                                    </RadzenStack>
+                                </Template>
+                            </RadzenDataGridColumn>
+                        </Columns>
+                    </RadzenDataGrid>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+    </RadzenRow>
+</RadzenStack>
+
+@code {
+    private List<Guide> _guides = new();
+    private List<AssignmentDisplay> _assignments = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _guides = await ActivityService.GetGuidesAsync();
+
+        var schedules = await ActivityService.GetSchedulesAsync(DateTime.Today);
+        var activities = await ActivityService.GetActivitiesAsync();
+
+        _assignments = schedules.Select(s =>
+        {
+            var activity = activities.FirstOrDefault(a => a.Id == s.ActivityId);
+            var guide = s.GuideId.HasValue ? _guides.FirstOrDefault(g => g.Id == s.GuideId.Value) : null;
+            return new AssignmentDisplay
+            {
+                ScheduleId = s.Id,
+                ActivityId = s.ActivityId,
+                GuideId = s.GuideId,
+                ActivityName = activity?.Name ?? "Unknown",
+                GuideName = guide?.Name ?? "Unassigned",
+                ScheduledDate = s.ScheduledDate,
+                StartTime = s.StartTime
+            };
+        }).ToList();
+    }
+
+    private async Task OpenAssignDialog(AssignmentDisplay assignment)
+    {
+        var availableGuides = _guides.Where(g => g.IsAvailable).ToList();
+        var result = await DialogService.OpenAsync<AssignGuideDialog>("Assign Guide",
+            new Dictionary<string, object>
+            {
+                { "AvailableGuides", availableGuides },
+                { "ActivityName", assignment.ActivityName }
+            },
+            new DialogOptions { Width = "450px", Resizable = true, Draggable = true });
+
+        if (result is Guide selectedGuide)
+        {
+            var success = await ActivityService.AssignGuideAsync(assignment.ActivityId, selectedGuide.Id);
+            if (success)
+            {
+                await LoadData();
+                NotificationService.Notify(NotificationSeverity.Success,
+                    $"{selectedGuide.Name} assigned to {assignment.ActivityName}");
+            }
+        }
+    }
+
+    private async Task UnassignGuide(AssignmentDisplay assignment)
+    {
+        var confirm = await DialogService.Confirm(
+            $"Unassign guide from {assignment.ActivityName}?",
+            "Confirm Unassign",
+            new ConfirmOptions { OkButtonText = "Yes", CancelButtonText = "No" });
+
+        if (confirm == true && assignment.GuideId.HasValue)
+        {
+            var success = await ActivityService.AssignGuideAsync(assignment.ActivityId, 0);
+            if (success)
+            {
+                await LoadData();
+                NotificationService.Notify(NotificationSeverity.Info,
+                    $"Guide unassigned from {assignment.ActivityName}");
+            }
+        }
+    }
+
+    private async Task OpenAddGuideDialog()
+    {
+        var guide = await DialogService.OpenAsync<AddGuideDialog>("Add New Guide",
+            new Dictionary<string, object>(),
+            new DialogOptions { Width = "500px", Resizable = true, Draggable = true });
+
+        if (guide is Guide newGuide)
+        {
+            await ActivityService.CreateGuideAsync(newGuide);
+            await LoadData();
+            NotificationService.Notify(NotificationSeverity.Success, "Guide added successfully");
+        }
+    }
+
+    private class AssignmentDisplay
+    {
+        public int ScheduleId { get; set; }
+        public int ActivityId { get; set; }
+        public int? GuideId { get; set; }
+        public string ActivityName { get; set; } = string.Empty;
+        public string GuideName { get; set; } = string.Empty;
+        public DateTime ScheduledDate { get; set; }
+        public TimeSpan StartTime { get; set; }
+    }
+}

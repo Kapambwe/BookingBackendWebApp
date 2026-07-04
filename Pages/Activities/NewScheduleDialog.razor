@@ -1,0 +1,51 @@
+@* Dialog for scheduling a new activity *@
+@inject DialogService DialogService
+@using BookingBackendWebApp.Services.Activities
+@inject IActivityService ActivityService
+
+<RadzenStack Gap="16">
+    <RadzenText TextStyle="TextStyle.H6">Schedule New Activity</RadzenText>
+    <RadzenTemplateForm TItem="BookingBackendWebApp.Models.ActivitySchedule" Model="@_schedule" Submit="@Save">
+        <RadzenStack Gap="12">
+            <RadzenDropDown @bind-Value="@_schedule.ActivityId" Data="@_activities" TextProperty="Name" ValueProperty="Id" Placeholder="Select Activity" Style="width:100%" />
+            <RadzenDatePicker @bind-Value="@_schedule.ScheduledDate" DateFormat="yyyy-MM-dd" Style="width:100%" />
+            <RadzenStack Horizontal="true" Gap="8">
+                <RadzenDatePicker @bind-Value="@startTime" DateFormat="HH:mm" DatePickerType="DatePickerType.Time" Style="width:100%" />
+                <RadzenDatePicker @bind-Value="@endTime" DateFormat="HH:mm" DatePickerType="DatePickerType.Time" Style="width:100%" />
+            </RadzenStack>
+            <RadzenNumeric @bind-Value="@_schedule.Capacity" Min="1" Max="999" Style="width:100%" />
+            <RadzenStack Horizontal="true" JustifyContent="JustifyContent.End" Gap="8">
+                <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Base" Click="@(() => DialogService.Close(null))" />
+                <RadzenButton Text="Schedule" ButtonStyle="ButtonStyle.Primary" ButtonType="ButtonType.Submit" />
+            </RadzenStack>
+        </RadzenStack>
+    </RadzenTemplateForm>
+</RadzenStack>
+
+@code {
+    private BookingBackendWebApp.Models.ActivitySchedule _schedule = new()
+    {
+        ScheduledDate = DateTime.Today,
+        StartTime = new TimeSpan(8, 0, 0),
+        EndTime = new TimeSpan(10, 0, 0),
+        Capacity = 10,
+        Status = "Scheduled"
+    };
+
+    private List<Activity> _activities = new();
+    private DateTime startTime = DateTime.Today.Add(new TimeSpan(8, 0, 0));
+    private DateTime endTime = DateTime.Today.Add(new TimeSpan(10, 0, 0));
+
+    protected override async Task OnInitializedAsync()
+    {
+        _activities = await ActivityService.GetActivitiesAsync();
+    }
+
+    private async Task Save()
+    {
+        _schedule.StartTime = startTime.TimeOfDay;
+        _schedule.EndTime = endTime.TimeOfDay;
+        DialogService.Close(_schedule);
+        await Task.CompletedTask;
+    }
+}

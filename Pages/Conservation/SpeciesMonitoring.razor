@@ -1,0 +1,114 @@
+@page "/conservation/species"
+@using BookingBackendWebApp.Services.Conservation
+@inject IConservationService ConservationService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<PageTitle>Species Monitoring</PageTitle>
+
+<RadzenStack Gap="1.5rem">
+    <RadzenRow>
+        <RadzenColumn Size="12">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween">
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.75rem">
+                    <RadzenIcon Icon="pets" IconStyle="IconStyle.Primary" Style="font-size: 1.75rem;" />
+                    <RadzenStack Gap="0.125rem">
+                        <RadzenText TextStyle="TextStyle.H5" TagName="TagName.H1" Style="margin: 0;">Species Monitoring</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0; color: var(--rz-text-secondary-color);">Individual species profiles and health records</RadzenText>
+                    </RadzenStack>
+                </RadzenStack>
+                <RadzenButton Icon="refresh" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="@LoadData" Text="Refresh" />
+            </RadzenStack>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenRow Gap="1rem">
+        @foreach (var s in species)
+        {
+            <RadzenColumn Size="12" SizeMD="6" SizeLG="4">
+                <RadzenCard class="rz-shadow-3" Style="height: 100%; cursor: pointer;" Click="@(() => ShowHealthRecords(s))">
+                    <RadzenStack Gap="0.75rem">
+                        <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Start">
+                            <RadzenStack Gap="0.25rem">
+                                <RadzenText TextStyle="TextStyle.H6" Style="margin: 0; font-weight: 600;">@s.Name</RadzenText>
+                                <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0; font-style: italic; color: var(--rz-text-secondary-color);">@s.ScientificName</RadzenText>
+                            </RadzenStack>
+                            <RadzenBadge Text="@s.ConservationStatus" BadgeStyle="@GetStatusBadge(s.ConservationStatus)" />
+                        </RadzenStack>
+
+                        <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem">
+                            <RadzenStack Gap="0.125rem">
+                                <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0; color: var(--rz-text-secondary-color);">Population</RadzenText>
+                                <RadzenText TextStyle="TextStyle.H6" Style="margin: 0; font-weight: 700;">@s.Population.ToString("N0")</RadzenText>
+                            </RadzenStack>
+                            <RadzenStack Gap="0.125rem">
+                                <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0; color: var(--rz-text-secondary-color);">Trend</RadzenText>
+                                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.25rem">
+                                    @if (s.PopulationTrend == PopulationTrend.Increasing)
+                                    {
+                                        <RadzenIcon Icon="arrow_upward" Style="color: #4CAF50; font-size: 1.25rem;" />
+                                        <RadzenText TextStyle="TextStyle.Body2" Style="color: #4CAF50; margin: 0;">Increasing</RadzenText>
+                                    }
+                                    else if (s.PopulationTrend == PopulationTrend.Declining)
+                                    {
+                                        <RadzenIcon Icon="arrow_downward" Style="color: #F44336; font-size: 1.25rem;" />
+                                        <RadzenText TextStyle="TextStyle.Body2" Style="color: #F44336; margin: 0;">Declining</RadzenText>
+                                    }
+                                    else
+                                    {
+                                        <RadzenIcon Icon="remove" Style="color: #FF9800; font-size: 1.25rem;" />
+                                        <RadzenText TextStyle="TextStyle.Body2" Style="color: #FF9800; margin: 0;">Stable</RadzenText>
+                                    }
+                                </RadzenStack>
+                            </RadzenStack>
+                        </RadzenStack>
+
+                        @if (s.LastCensusDate.HasValue)
+                        {
+                            <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0; color: var(--rz-text-secondary-color);">
+                                Last census: @s.LastCensusDate.Value.ToString("MMM dd, yyyy")
+                            </RadzenText>
+                        }
+
+                        <RadzenButton ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Text="View Health Records" Style="width: 100%;" />
+                    </RadzenStack>
+                </RadzenCard>
+            </RadzenColumn>
+        }
+    </RadzenRow>
+</RadzenStack>
+
+@code {
+    private List<Species> species = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        species = await ConservationService.GetSpeciesAsync();
+    }
+
+    private async Task ShowHealthRecords(Species s)
+    {
+        await DialogService.Alert($@"<b>Health Records: {s.Name}</b><br/><br/>
+Scientific Name: {s.ScientificName}<br/>
+Conservation Status: {s.ConservationStatus}<br/>
+Population: {s.Population:N0}<br/>
+Trend: {s.PopulationTrend}<br/><br/>
+<i>Detailed health records and veterinary reports can be found in the attached documents.</i>",
+            $"Species Health - {s.Name}");
+    }
+
+    private BadgeStyle GetStatusBadge(string status) => status switch
+    {
+        "Critically Endangered" => BadgeStyle.Danger,
+        "Endangered" => BadgeStyle.Danger,
+        "Vulnerable" => BadgeStyle.Warning,
+        "Near Threatened" => BadgeStyle.Info,
+        "Least Concern" => BadgeStyle.Success,
+        _ => BadgeStyle.Light
+    };
+}

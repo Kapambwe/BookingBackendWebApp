@@ -1,0 +1,245 @@
+@page "/transport/maintenance"
+@using BookingBackendWebApp.Services.Transport
+@inject ITransportService TransportService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<RadzenCard>
+    <RadzenTabs RenderMode="TabRenderMode.Client">
+        <RadzenTabsItem Text="Fuel Logs" Icon="local_gas_station">
+            <div class="d-flex justify-content-between align-items-center mb-3 mt-3">
+                <RadzenText TextStyle="TextStyle.H5">Fuel Logs</RadzenText>
+                <RadzenButton ButtonStyle="ButtonStyle.Primary" Click="@(() => ShowAddFuelDialog())">Add Fuel Entry</RadzenButton>
+            </div>
+            <RadzenDataGrid Data="@fuelLogs" TItem="FuelLog" AllowPaging="true" PageSize="10" AllowSorting="true">
+                <Columns>
+                    <RadzenDataGridColumn TItem="FuelLog" Title="Vehicle" Sortable="true">
+                        <Template Context="f">
+                            @GetVehicleName(f.VehicleId)
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="FuelLog" Property="Liters" Title="Liters" Sortable="true">
+                        <Template Context="f">
+                            @($"{f.Liters:N1}")
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="FuelLog" Property="Cost" Title="Cost" Sortable="true">
+                        <Template Context="f">
+                            @($"{f.Cost:N2}")
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="FuelLog" Property="Date" Title="Date" Sortable="true">
+                        <Template Context="f">
+                            @f.Date.ToString("yyyy-MM-dd")
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="FuelLog" Property="Odometer" Title="Odometer" Sortable="true">
+                        <Template Context="f">
+                            @($"{f.Odometer:N0} km")
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenTabsItem>
+
+        <RadzenTabsItem Text="Maintenance Records" Icon="build">
+            <div class="d-flex justify-content-between align-items-center mb-3 mt-3">
+                <RadzenText TextStyle="TextStyle.H5">Maintenance Records</RadzenText>
+                <RadzenButton ButtonStyle="ButtonStyle.Primary" Click="@(() => ShowAddMaintenanceDialog())">Add Maintenance Record</RadzenButton>
+            </div>
+            <RadzenDataGrid Data="@vehicles" TItem="Vehicle" AllowPaging="true" PageSize="10" AllowSorting="true">
+                <Columns>
+                    <RadzenDataGridColumn TItem="Vehicle" Property="Name" Title="Vehicle" Sortable="true" />
+                    <RadzenDataGridColumn TItem="Vehicle" Title="Description" Sortable="true">
+                        <Template Context="v">
+                            @($"{(v.Status == VehicleStatus.Maintenance ? "Scheduled Maintenance" : "Operational Check")}")
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="Vehicle" Title="Cost" Sortable="true">
+                        <Template Context="v">
+                            <span>N/A</span>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="Vehicle" Title="Last Service Date" Sortable="true">
+                        <Template Context="v">
+                            @(v.LastServiceDate?.ToString("yyyy-MM-dd") ?? "N/A")
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="Vehicle" Property="Status" Title="Status" Sortable="true">
+                        <Template Context="v">
+                            @{
+                                var variant = v.Status switch
+                                {
+                                    VehicleStatus.Available => BadgeStyle.Success,
+                                    VehicleStatus.InUse => BadgeStyle.Primary,
+                                    VehicleStatus.Maintenance => BadgeStyle.Warning,
+                                    VehicleStatus.OutOfService => BadgeStyle.Danger,
+                                    _ => BadgeStyle.Light
+                                };
+                            }
+                            <RadzenBadge BadgeStyle="@variant" Size="BadgeSize.Small">@v.Status.ToString()</RadzenBadge>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="Vehicle" Title="Service Due" Sortable="true">
+                        <Template Context="v">
+                            @{
+                                var dueDate = v.NextServiceDue;
+                                var isOverdue = dueDate.HasValue && dueDate.Value <= DateTime.Today;
+                            }
+                            @if (dueDate.HasValue)
+                            {
+                                <span class="@(isOverdue ? "text-danger fw-bold" : "")">
+                                    @dueDate.Value.ToString("yyyy-MM-dd")
+                                </span>
+                            }
+                            else
+                            {
+                                <span>N/A</span>
+                            }
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="Vehicle" Title="Actions" Width="120px">
+                        <Template Context="v">
+                            @if (v.Status == VehicleStatus.Available)
+                            {
+                                <RadzenButton Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Warning"
+                                    Click="@(() => ToggleMaintenance(v))">Mark Maintenance</RadzenButton>
+                            }
+                            else if (v.Status == VehicleStatus.Maintenance)
+                            {
+                                <RadzenButton Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Success"
+                                    Click="@(() => ToggleMaintenance(v))">Mark Available</RadzenButton>
+                            }
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenTabsItem>
+    </RadzenTabs>
+</RadzenCard>
+
+@if (showFuelDialog)
+{
+    <RadzenDialog Style="position:fixed;z-index:2000">
+        <RadzenCard Style="width:500px">
+            <RadzenText TextStyle="TextStyle.H5" Style="margin-bottom:1rem">Add Fuel Entry</RadzenText>
+            <RadzenTemplateForm TItem="FuelLog" Model="@newFuelLog" Submit="@SaveFuelLog">
+                <div class="mb-3">
+                    <RadzenLabel Component="VehicleSelect" Text="Vehicle" />
+                    <RadzenDropDown @bind-Value="@newFuelLog.VehicleId" Data="@vehicles"
+                        TextProperty="Name" ValueProperty="Id" Name="VehicleSelect" Style="width:100%" />
+                </div>
+                <div class="mb-3">
+                    <RadzenLabel Component="LitersInput" Text="Liters" />
+                    <RadzenNumeric @bind-Value="@newFuelLog.Liters" Name="LitersInput" Style="width:100%" Min="0" Step="0.1" />
+                </div>
+                <div class="mb-3">
+                    <RadzenLabel Component="CostInput" Text="Cost" />
+                    <RadzenNumeric @bind-Value="@newFuelLog.Cost" Name="CostInput" Style="width:100%" Min="0" Step="0.01" />
+                </div>
+                <div class="mb-3">
+                    <RadzenLabel Component="DateInput" Text="Date" />
+                    <RadzenDatePicker @bind-Value="@newFuelLog.Date" Name="DateInput" Style="width:100%" />
+                </div>
+                <div class="mb-3">
+                    <RadzenLabel Component="OdometerInput" Text="Odometer (km)" />
+                    <RadzenNumeric @bind-Value="@newFuelLog.Odometer" Name="OdometerInput" Style="width:100%" Min="0" />
+                </div>
+                <div class="d-flex justify-content-end gap-2">
+                    <RadzenButton ButtonStyle="ButtonStyle.Secondary" Click="@(() => showFuelDialog = false)">Cancel</RadzenButton>
+                    <RadzenButton ButtonStyle="ButtonStyle.Primary" ButtonType="ButtonType.Submit">Save</RadzenButton>
+                </div>
+            </RadzenTemplateForm>
+        </RadzenCard>
+    </RadzenDialog>
+}
+
+@if (showMaintenanceDialog)
+{
+    <RadzenDialog Style="position:fixed;z-index:2000">
+        <RadzenCard Style="width:500px">
+            <RadzenText TextStyle="TextStyle.H5" Style="margin-bottom:1rem">Toggle Vehicle Status</RadzenText>
+            <RadzenTemplateForm TItem="Vehicle" Model="@selectedVehicle" Submit="@SaveMaintenanceToggle">
+                <div class="mb-3">
+                    <RadzenLabel Component="MaintVehicle" Text="Vehicle" />
+                    <RadzenDropDown @bind-Value="@selectedVehicle.Id" Data="@vehicles"
+                        TextProperty="Name" ValueProperty="Id" Name="MaintVehicle" Style="width:100%"
+                        Change="@(args => selectedVehicle = vehicles.First(v => v.Id == (int)args))" />
+                </div>
+                <div class="d-flex justify-content-end gap-2">
+                    <RadzenButton ButtonStyle="ButtonStyle.Secondary" Click="@(() => showMaintenanceDialog = false)">Cancel</RadzenButton>
+                    <RadzenButton ButtonStyle="ButtonStyle.Primary" ButtonType="ButtonType.Submit">Toggle Status</RadzenButton>
+                </div>
+            </RadzenTemplateForm>
+        </RadzenCard>
+    </RadzenDialog>
+}
+
+@code {
+    private List<FuelLog> fuelLogs = new();
+    private List<Vehicle> vehicles = new();
+    private bool showFuelDialog;
+    private bool showMaintenanceDialog;
+    private FuelLog newFuelLog = new();
+    private Vehicle selectedVehicle = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        vehicles = await TransportService.GetVehiclesAsync();
+        fuelLogs = await TransportService.GetFuelLogsAsync();
+    }
+
+    private string GetVehicleName(int vehicleId)
+    {
+        return vehicles.FirstOrDefault(v => v.Id == vehicleId)?.Name ?? $"Vehicle #{vehicleId}";
+    }
+
+    private void ShowAddFuelDialog()
+    {
+        newFuelLog = new FuelLog { Date = DateTime.Today };
+        showFuelDialog = true;
+    }
+
+    private async Task SaveFuelLog()
+    {
+        await TransportService.AddFuelLogAsync(newFuelLog);
+        showFuelDialog = false;
+        await LoadData();
+        NotificationService.Notify(NotificationSeverity.Success, "Fuel entry added");
+    }
+
+    private void ShowAddMaintenanceDialog()
+    {
+        selectedVehicle = vehicles.FirstOrDefault() ?? new Vehicle();
+        showMaintenanceDialog = true;
+    }
+
+    private async Task SaveMaintenanceToggle()
+    {
+        await TransportService.ToggleVehicleStatusAsync(selectedVehicle.Id);
+        showMaintenanceDialog = false;
+        await LoadData();
+        NotificationService.Notify(NotificationSeverity.Success, "Vehicle status updated");
+    }
+
+    private async Task ToggleMaintenance(Vehicle vehicle)
+    {
+        var action = vehicle.Status == VehicleStatus.Available ? "send to maintenance" : "mark available";
+        var result = await DialogService.Confirm(
+            $"Are you sure you want to {action} for {vehicle.Name}?",
+            "Toggle Status",
+            new ConfirmOptions { OkButtonText = "Confirm", CancelButtonText = "Cancel" });
+
+        if (result == true)
+        {
+            await TransportService.ToggleVehicleStatusAsync(vehicle.Id);
+            await LoadData();
+            NotificationService.Notify(NotificationSeverity.Success, $"{vehicle.Name} status updated");
+        }
+    }
+}

@@ -1,0 +1,125 @@
+@page "/tour-operators/commissions"
+@using BookingBackendWebApp.Services.TourOperators
+@inject ITourOperatorService TourOperatorService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<RadzenCard class="mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <RadzenText TextStyle="TextStyle.H5">Commission Configurations</RadzenText>
+        <RadzenButton ButtonStyle="ButtonStyle.Primary" Click="@(() => ShowAddDialog())">Add Commission</RadzenButton>
+    </div>
+    <RadzenDataGrid Data="@commissions" TItem="Models.CommissionConfig" AllowPaging="true" PageSize="10" AllowSorting="true">
+        <Columns>
+            <RadzenDataGridColumn TItem="Models.CommissionConfig" Title="Operator Name" Sortable="true">
+                <Template Context="c">
+                    @GetOperatorName(c.OperatorId)
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="Models.CommissionConfig" Property="Rate" Title="Rate" Sortable="true">
+                <Template Context="c">
+                    @($"{c.Rate:P}")
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="Models.CommissionConfig" Property="EffectiveFrom" Title="Effective From" Sortable="true">
+                <Template Context="c">
+                    @c.EffectiveFrom.ToString("yyyy-MM-dd")
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="Models.CommissionConfig" Property="EffectiveTo" Title="Effective To" Sortable="true">
+                <Template Context="c">
+                    @(c.EffectiveTo?.ToString("yyyy-MM-dd") ?? "Ongoing")
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="Models.CommissionConfig" Title="Actions" Width="120px">
+                <Template Context="c">
+                    <RadzenButton Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Primary"
+                        Click="@(() => ShowEditDialog(c))">Edit</RadzenButton>
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+</RadzenCard>
+
+@if (showDialog)
+{
+    <RadzenDialog Style="position:fixed;z-index:2000">
+        <RadzenCard Style="width:500px">
+            <RadzenText TextStyle="TextStyle.H5" Style="margin-bottom:1rem">@(editingConfig.Id == 0 ? "Add" : "Edit") Commission Config</RadzenText>
+            <RadzenTemplateForm TItem="Models.CommissionConfig" Model="@editingConfig" Submit="@SaveConfig">
+                <div class="mb-3">
+                    <RadzenLabel Component="OperatorSelect" Text="Operator" />
+                    <RadzenDropDown @bind-Value="@editingConfig.OperatorId" Data="@operators"
+                        TextProperty="Name" ValueProperty="Id" Name="OperatorSelect" Style="width:100%" />
+                </div>
+                <div class="mb-3">
+                    <RadzenLabel Component="RateInput" Text="Rate" />
+                    <RadzenNumeric @bind-Value="@editingConfig.Rate" Name="RateInput" Style="width:100%"
+                        Min="0" Max="1" Step="0.01" Format="{0:P}" />
+                </div>
+                <div class="mb-3">
+                    <RadzenLabel Component="EffFrom" Text="Effective From" />
+                    <RadzenDatePicker @bind-Value="@editingConfig.EffectiveFrom" Name="EffFrom" Style="width:100%" />
+                </div>
+                <div class="mb-3">
+                    <RadzenLabel Component="EffTo" Text="Effective To" />
+                    <RadzenDatePicker @bind-Value="@editingConfig.EffectiveTo" Name="EffTo" Style="width:100%" />
+                </div>
+                <div class="d-flex justify-content-end gap-2">
+                    <RadzenButton ButtonStyle="ButtonStyle.Secondary" Click="@(() => showDialog = false)">Cancel</RadzenButton>
+                    <RadzenButton ButtonStyle="ButtonStyle.Primary" ButtonType="ButtonType.Submit">Save</RadzenButton>
+                </div>
+            </RadzenTemplateForm>
+        </RadzenCard>
+    </RadzenDialog>
+}
+
+@code {
+    private List<Models.CommissionConfig> commissions = new();
+    private List<TourOperator> operators = new();
+    private bool showDialog;
+    private Models.CommissionConfig editingConfig = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        operators = await TourOperatorService.GetOperatorsAsync();
+        commissions = await TourOperatorService.GetCommissionConfigsAsync();
+    }
+
+    private string GetOperatorName(int operatorId)
+    {
+        return operators.FirstOrDefault(o => o.Id == operatorId)?.Name ?? "Unknown";
+    }
+
+    private void ShowAddDialog()
+    {
+        editingConfig = new Models.CommissionConfig { EffectiveFrom = DateTime.Today };
+        showDialog = true;
+    }
+
+    private void ShowEditDialog(Models.CommissionConfig config)
+    {
+        editingConfig = new Models.CommissionConfig
+        {
+            Id = config.Id,
+            OperatorId = config.OperatorId,
+            Rate = config.Rate,
+            EffectiveFrom = config.EffectiveFrom,
+            EffectiveTo = config.EffectiveTo
+        };
+        showDialog = true;
+    }
+
+    private async Task SaveConfig()
+    {
+        await TourOperatorService.UpdateCommissionConfigAsync(editingConfig);
+        showDialog = false;
+        await LoadData();
+        NotificationService.Notify(NotificationSeverity.Success, "Commission config saved");
+    }
+}

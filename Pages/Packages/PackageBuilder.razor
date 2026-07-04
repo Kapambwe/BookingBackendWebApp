@@ -1,0 +1,130 @@
+@page "/packages/builder"
+@page "/packages/builder/{Id:int}"
+@namespace BookingBackendWebApp.Pages.Packages
+@inject IPackageService PackageService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+@inject NavigationManager NavigationManager
+
+<RadzenCard>
+    <RadzenContentContainer>
+        <h3>@(IsEdit ? "Edit Package" : "Create Package")</h3>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div>
+                <RadzenLabel Text="Package Name" Component="name" />
+                <RadzenTextBox @bind-Value="@model.Name" Id="name" Placeholder="e.g. Silver Adventurer" />
+            </div>
+            <div>
+                <RadzenLabel Text="Tier" Component="tier" />
+                <RadzenDropDown @bind-Value="@model.Tier" Data="@packageTiers" Placeholder="Select tier" />
+            </div>
+            <div>
+                <RadzenLabel Text="Base Price (KES)" Component="basePrice" />
+                <RadzenNumeric @bind-Value="@model.BasePrice" Id="basePrice" Min="0" Step="1000" />
+            </div>
+            <div>
+                <RadzenLabel Text="Peak Multiplier" Component="peak" />
+                <RadzenNumeric @bind-Value="@model.PeakMultiplier" Id="peak" Min="1" Max="3" Step="0.1" />
+            </div>
+        </div>
+
+        <div style="margin-top:16px;">
+            <RadzenLabel Text="Description" Component="desc" />
+            <RadzenTextArea @bind-Value="@model.Description" Id="desc" Rows="3" Style="width:100%;" />
+        </div>
+
+        <RadzenCard Style="margin-top:16px;padding:16px;">
+            <h4>Components Included</h4>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:8px;">
+                <div><RadzenCheckBox @bind-Value="@model.IncludesAccommodation" /> <RadzenLabel Text="Accommodation" Component="chkAcc" /></div>
+                <div><RadzenCheckBox @bind-Value="@model.IncludesMeals" /> <RadzenLabel Text="Meals" Component="chkMeals" /></div>
+                <div><RadzenCheckBox @bind-Value="@model.IncludesTransfers" /> <RadzenLabel Text="Transfers" Component="chkTrans" /></div>
+                <div><RadzenCheckBox @bind-Value="@model.IncludesGameDrives" /> <RadzenLabel Text="Game Drives" Component="chkGame" /></div>
+                <div><RadzenCheckBox @bind-Value="@model.IncludesParkEntry" /> <RadzenLabel Text="Park Entry" Component="chkPark" /></div>
+                <div><RadzenCheckBox @bind-Value="@model.IncludesGuide" /> <RadzenLabel Text="Guide" Component="chkGuide" /></div>
+            </div>
+        </RadzenCard>
+
+        <RadzenCard Style="margin-top:16px;padding:16px;">
+            <h4>Cost Analysis</h4>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div style="font-weight:500;">Total Component Cost:</div>
+                <div>@totalCost.ToString("N0") KES</div>
+                <div style="font-weight:500;">Selling Price:</div>
+                <div>@model.BasePrice.ToString("N0") KES</div>
+                <div style="font-weight:500;">Margin:</div>
+                <div style="color:@(margin >= 0 ? "var(--rz-success)" : "var(--rz-danger)");font-weight:600;">
+                    @margin.ToString("N0") KES
+                </div>
+                <div style="font-weight:500;">Margin %:</div>
+                <div style="color:@(marginPct >= 20 ? "var(--rz-success)" : marginPct >= 10 ? "var(--rz-warning)" : "var(--rz-danger)");font-weight:600;">
+                    @marginPct.ToString("F1")%
+                </div>
+            </div>
+            <RadzenProgressBar Value="@Math.Max(0, (int)marginPct)" Max="100" Style="margin-top:8px;" />
+        </RadzenCard>
+
+        <div style="margin-top:16px;display:flex;gap:8px;">
+            <RadzenButton Text="@(IsEdit ? "Update" : "Create")" ButtonStyle="ButtonStyle.Primary" Click="@SavePackage" />
+            <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Secondary" Click="@(() => NavigationManager.NavigateTo("/packages"))" />
+        </div>
+    </RadzenContentContainer>
+</RadzenCard>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Package model = new()
+    {
+        PeakMultiplier = 1.0m,
+        IsActive = true
+    };
+    private bool IsEdit;
+    private PackageTier[] packageTiers = Enum.GetValues<PackageTier>();
+
+    private decimal totalCost
+    {
+        get
+        {
+            var cost = 0m;
+            if (model.IncludesAccommodation) cost += 5000;
+            if (model.IncludesMeals) cost += 2000;
+            if (model.IncludesTransfers) cost += 3000;
+            if (model.IncludesGameDrives) cost += 4000;
+            if (model.IncludesParkEntry) cost += 1500;
+            if (model.IncludesGuide) cost += 3500;
+            return cost;
+        }
+    }
+
+    private decimal margin => model.BasePrice - totalCost;
+    private decimal marginPct => model.BasePrice > 0 ? (margin / model.BasePrice) * 100 : 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id > 0)
+        {
+            IsEdit = true;
+            var existing = await PackageService.GetPackageAsync(Id);
+            if (existing is not null) model = existing;
+        }
+    }
+
+    private async Task SavePackage()
+    {
+        if (string.IsNullOrWhiteSpace(model.Name))
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Validation", "Package name is required.");
+            return;
+        }
+
+        if (IsEdit)
+            await PackageService.UpdatePackageAsync(model);
+        else
+            await PackageService.CreatePackageAsync(model);
+
+        NotificationService.Notify(NotificationSeverity.Success, "Saved", $"Package \"{model.Name}\" has been {(IsEdit ? "updated" : "created")}.");
+        NavigationManager.NavigateTo("/packages");
+    }
+}

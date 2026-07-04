@@ -1,0 +1,304 @@
+@page "/dashboard/conservation"
+@using Radzen
+@using Radzen.Blazor
+@using BookingBackendWebApp.Models
+@using BookingBackendWebApp.Services
+@using BookingBackendWebApp.Services.Bookings
+@using BookingBackendWebApp.Services.RevenueManagement
+@using BookingBackendWebApp.Services.Conservation
+@using BookingBackendWebApp.Services.GovernmentIntelligence
+
+@inject IBookingService BookingService
+@inject IPackageService PackageService
+@inject IAccommodationService AccommodationService
+@inject IRevenueManagementService RevenueManagementService
+@inject IConservationService ConservationService
+@inject IGovernmentIntelligenceService GovernmentIntelligenceService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+@inject TooltipService TooltipService
+
+<PageTitle>Conservation Dashboard</PageTitle>
+
+<RadzenStack Gap="1.5rem">
+    <RadzenRow>
+        <RadzenColumn Size="12">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween">
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.75rem">
+                    <RadzenIcon Icon="park" IconStyle="IconStyle.Primary" Style="font-size: 1.75rem;" />
+                    <RadzenStack Gap="0.125rem">
+                        <RadzenText TextStyle="TextStyle.H5" TagName="TagName.H1" Style="margin: 0;">Conservation Dashboard</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0; color: var(--rz-text-secondary-color);">Wildlife monitoring, incident tracking, and conservation projects</RadzenText>
+                    </RadzenStack>
+                </RadzenStack>
+                <RadzenButton Icon="refresh" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="@LoadData" Text="Refresh" />
+            </RadzenStack>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenRow Gap="1rem">
+        <RadzenColumn Size="12" SizeMD="6" SizeLG="3">
+            <RadzenCard class="rz-shadow-3" Style="height: 100%; background: linear-gradient(135deg, #1B2A4A 0%, #2E7D32 100%);">
+                <RadzenStack Gap="0.5rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Start">
+                        <RadzenIcon Icon="pets" Style="font-size: 2rem; color: rgba(255,255,255,0.9);" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="Total" Style="font-size: 0.7rem;" />
+                    </RadzenStack>
+                    <RadzenText TextStyle="TextStyle.H5" Style="color: white; margin: 0; font-weight: 700;">
+                        @totalSpecies
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: rgba(255,255,255,0.9); margin: 0;">
+                        Monitored Species
+                    </RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMD="6" SizeLG="3">
+            <RadzenCard class="rz-shadow-3" Style="height: 100%; background: linear-gradient(135deg, #2E7D32 0%, #43A047 100%);">
+                <RadzenStack Gap="0.5rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Start">
+                        <RadzenIcon Icon="people" Style="font-size: 2rem; color: rgba(255,255,255,0.9);" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="Population" Style="font-size: 0.7rem;" />
+                    </RadzenStack>
+                    <RadzenText TextStyle="TextStyle.H5" Style="color: white; margin: 0; font-weight: 700;">
+                        @totalPopulation.ToString("N0")
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: rgba(255,255,255,0.9); margin: 0;">
+                        Total Population
+                    </RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMD="6" SizeLG="3">
+            <RadzenCard class="rz-shadow-3" Style="height: 100%; background: linear-gradient(135deg, #43A047 0%, #66BB6A 100%);">
+                <RadzenStack Gap="0.5rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Start">
+                        <RadzenIcon Icon="warning" Style="font-size: 2rem; color: rgba(255,255,255,0.9);" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="Open" Style="font-size: 0.7rem;" />
+                    </RadzenStack>
+                    <RadzenText TextStyle="TextStyle.H5" Style="color: white; margin: 0; font-weight: 700;">
+                        @openIncidents
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: rgba(255,255,255,0.9); margin: 0;">
+                        Open Incidents
+                    </RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMD="6" SizeLG="3">
+            <RadzenCard class="rz-shadow-3" Style="height: 100%; background: linear-gradient(135deg, #66BB6A 0%, #A5D6A7 100%);">
+                <RadzenStack Gap="0.5rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Start">
+                        <RadzenIcon Icon="construction" Style="font-size: 2rem; color: rgba(255,255,255,0.9);" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="Active" Style="font-size: 0.7rem;" />
+                    </RadzenStack>
+                    <RadzenText TextStyle="TextStyle.H5" Style="color: white; margin: 0; font-weight: 700;">
+                        @activeProjects
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: rgba(255,255,255,0.9); margin: 0;">
+                        Active Projects
+                    </RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenRow Gap="1rem">
+        <RadzenColumn Size="12" SizeLG="8">
+            <RadzenCard class="rz-shadow-3">
+                <RadzenStack Gap="1rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                        <RadzenIcon Icon="bar_chart" IconStyle="IconStyle.Primary" />
+                        <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">Species Population Overview</RadzenText>
+                    </RadzenStack>
+                    <RadzenChart>
+                        <RadzenBarSeries Data="@speciesData" CategoryProperty="Name" ValueProperty="Population" Smooth="true">
+                            <RadzenSeriesConfiguration>
+                                <RadzenSeriesColor Color="#2E7D32" />
+                            </RadzenSeriesConfiguration>
+                        </RadzenBarSeries>
+                        <RadzenLegend Position="LegendPosition.Bottom" />
+                        <RadzenValueAxis Title="Population Count" />
+                    </RadzenChart>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeLG="4">
+            <RadzenCard class="rz-shadow-3">
+                <RadzenStack Gap="1rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                        <RadzenIcon Icon="warning" IconStyle="IconStyle.Primary" />
+                        <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">Recent Incidents</RadzenText>
+                    </RadzenStack>
+                    <RadzenStack Gap="0.5rem">
+                        @foreach (var incident in recentIncidents)
+                        {
+                            <RadzenCard Style="@GetIncidentCardStyle(incident.Severity)">
+                                <RadzenStack Gap="0.25rem">
+                                    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+                                        <RadzenText TextStyle="TextStyle.Subtitle2" Style="margin: 0; font-weight: 600;">@incident.Type</RadzenText>
+                                        <RadzenBadge Text="@incident.Severity.ToString()" BadgeStyle="@GetSeverityBadge(incident.Severity)" />
+                                    </RadzenStack>
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0; color: var(--rz-text-secondary-color);">
+                                        @incident.Location - @incident.Date.ToString("MMM dd")
+                                    </RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0;">@incident.Description</RadzenText>
+                                </RadzenStack>
+                            </RadzenCard>
+                        }
+                    </RadzenStack>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenCard class="rz-shadow-3">
+        <RadzenStack Gap="1rem">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                <RadzenIcon Icon="construction" IconStyle="IconStyle.Primary" />
+                <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">Conservation Projects</RadzenText>
+                <RadzenBadge BadgeStyle="BadgeStyle.Primary" Text="@($"{projects.Count} projects")" />
+            </RadzenStack>
+            <RadzenDataGrid Data="@projects" TItem="ConservationProject" AllowSorting="true" AllowPaging="true" PageSize="5">
+                <Columns>
+                    <RadzenDataGridColumn Title="Project Name" Property="Name" Width="200px" Frozen="true">
+                        <Template Context="p">
+                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                                <RadzenIcon Icon="eco" IconStyle="IconStyle.Success" Style="font-size: 1rem;" />
+                                <RadzenText TextStyle="TextStyle.Body2" Style="margin: 0; font-weight: 600;">@p.Name</RadzenText>
+                            </RadzenStack>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn Title="Status" Width="120px">
+                        <Template Context="p">
+                            <RadzenBadge Text="@p.Status" BadgeStyle="@GetProjectStatusBadge(p.Status)" />
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn Title="Budget (KES)" Width="130px">
+                        <Template Context="p">
+                            <RadzenText TextStyle="TextStyle.Body2" Style="margin: 0; font-weight: 600;">@string.Format("{0:N0}", p.Budget)</RadzenText>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn Title="Spent (KES)" Width="130px">
+                        <Template Context="p">
+                            <RadzenText TextStyle="TextStyle.Body2" Style="margin: 0;">@string.Format("{0:N0}", p.Spent)</RadzenText>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn Title="Progress" Width="160px">
+                        <Template Context="p">
+                            <RadzenStack Gap="0.25rem">
+                                <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween">
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0; font-size: 0.7rem;">Spent</RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0; font-size: 0.7rem;">
+                                        @(p.Budget > 0 ? $"{p.Spent / p.Budget * 100:F1}%" : "0%")
+                                    </RadzenText>
+                                </RadzenStack>
+                                <RadzenProgressBar Value="@(p.Budget > 0 ? (double)(p.Spent / p.Budget * 100) : 0)" Max="100" Style="height: 4px;" />
+                            </RadzenStack>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn Title="Timeline" Width="180px">
+                        <Template Context="p">
+                            <RadzenStack Gap="0.25rem">
+                                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.25rem">
+                                    <RadzenIcon Icon="date_range" IconStyle="IconStyle.Info" Style="font-size: 0.875rem;" />
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0;">
+                                        @p.StartDate.ToString("MMM yyyy") - @(p.EndDate?.ToString("MMM yyyy") ?? "Ongoing")
+                                    </RadzenText>
+                                </RadzenStack>
+                            </RadzenStack>
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenStack>
+    </RadzenCard>
+</RadzenStack>
+
+@code {
+    private List<Species> species = new();
+    private List<Incident> incidents = new();
+    private List<Incident> recentIncidents = new();
+    private List<ConservationProject> projects = new();
+
+    private int totalSpecies;
+    private int totalPopulation;
+    private int openIncidents;
+    private int activeProjects;
+
+    private List<SpeciesChartItem> speciesData = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        species = await ConservationService.GetSpeciesAsync();
+        incidents = await ConservationService.GetIncidentsAsync();
+        projects = await ConservationService.GetProjectsAsync();
+
+        CalculateKpis();
+        BuildChartData();
+    }
+
+    private void CalculateKpis()
+    {
+        totalSpecies = species.Count;
+        totalPopulation = species.Sum(s => s.Population);
+        openIncidents = incidents.Count(i => i.Status != IncidentStatus.Resolved);
+        activeProjects = projects.Count(p => p.Status == "In Progress" || p.Status == "Active" || p.Status == "Planning");
+
+        recentIncidents = incidents
+            .OrderByDescending(i => i.Date)
+            .Take(4)
+            .ToList();
+    }
+
+    private void BuildChartData()
+    {
+        speciesData = species.Select(s => new SpeciesChartItem
+        {
+            Name = s.Name,
+            Population = s.Population
+        }).ToList();
+    }
+
+    private string GetIncidentCardStyle(IncidentSeverity severity) =>
+        $"padding: 0.75rem; border-left: 4px solid {GetIncidentColor(severity)};";
+
+    private string GetIncidentColor(IncidentSeverity severity) => severity switch
+    {
+        IncidentSeverity.Critical => "#C62828",
+        IncidentSeverity.High => "#E65100",
+        IncidentSeverity.Medium => "#F9A825",
+        IncidentSeverity.Low => "#2E7D32",
+        _ => "#9E9E9E"
+    };
+
+    private BadgeStyle GetSeverityBadge(IncidentSeverity severity) => severity switch
+    {
+        IncidentSeverity.Critical => BadgeStyle.Danger,
+        IncidentSeverity.High => BadgeStyle.Warning,
+        IncidentSeverity.Medium => BadgeStyle.Info,
+        IncidentSeverity.Low => BadgeStyle.Success,
+        _ => BadgeStyle.Light
+    };
+
+    private BadgeStyle GetProjectStatusBadge(string status) => status switch
+    {
+        "In Progress" or "Active" => BadgeStyle.Success,
+        "Planning" => BadgeStyle.Warning,
+        "Completed" => BadgeStyle.Info,
+        "On Hold" => BadgeStyle.Secondary,
+        "Cancelled" => BadgeStyle.Danger,
+        _ => BadgeStyle.Light
+    };
+
+    private class SpeciesChartItem
+    {
+        public string Name { get; set; } = "";
+        public int Population { get; set; }
+    }
+}

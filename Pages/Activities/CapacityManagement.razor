@@ -1,0 +1,154 @@
+@page "/activities/capacity"
+@using BookingBackendWebApp.Services.Activities
+@inject IActivityService ActivityService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<RadzenStack Gap="24">
+    <RadzenCard>
+        <RadzenStack Gap="16">
+            <RadzenStack Horizontal="true" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+                <RadzenText TextStyle="TextStyle.H5">Capacity Management</RadzenText>
+                <RadzenButton Text="Override Capacity" ButtonStyle="ButtonStyle.Warning"
+                    Icon="edit" Click="@OpenOverrideDialog" />
+            </RadzenStack>
+
+            <RadzenDataGrid @ref="_grid" Data="@_activityCapacity" TItem="ActivityCapacityDisplay"
+                AllowPaging="true" AllowSorting="true" PageSize="10">
+                <Columns>
+                    <RadzenDataGridColumn TItem="ActivityCapacityDisplay" Property="Name" Title="Activity" Sortable="true" />
+                    <RadzenDataGridColumn TItem="ActivityCapacityDisplay" Property="Type" Title="Type" Sortable="true" />
+                    <RadzenDataGridColumn TItem="ActivityCapacityDisplay" Property="BaseCapacity" Title="Base Capacity" Sortable="true" />
+                    <RadzenDataGridColumn TItem="ActivityCapacityDisplay" Property="OverrideCapacity" Title="Override Capacity" Sortable="true" />
+                    <RadzenDataGridColumn TItem="ActivityCapacityDisplay" Property="EffectiveCapacity" Title="Effective Capacity" Sortable="true">
+                        <Template Context="item">
+                            <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="@item.EffectiveCapacity.ToString()" />
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="ActivityCapacityDisplay" Property="UtilizationPercent" Title="Utilization" Sortable="true">
+                        <Template Context="item">
+                            <RadzenStack Gap="4">
+                                <RadzenProgressBar Value="@item.UtilizationPercent" Max="100"
+                                    Style="@(item.UtilizationPercent > 80 ? "warning" : item.UtilizationPercent > 50 ? "info" : "success")" />
+                                <RadzenText TextStyle="TextStyle.Body2">@item.UtilizationPercent% (@item.Booked / @item.EffectiveCapacity)</RadzenText>
+                            </RadzenStack>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="ActivityCapacityDisplay" Property="IsActive" Title="Status" Sortable="true">
+                        <Template Context="item">
+                            @if (item.IsActive)
+                            {
+                                <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="Active" />
+                            }
+                            else
+                            {
+                                <RadzenBadge BadgeStyle="BadgeStyle.Danger" Text="Inactive" />
+                            }
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="ActivityCapacityDisplay" Title="Actions">
+                        <Template Context="item">
+                            <RadzenButton ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small"
+                                Icon="edit" Text="Edit"
+                                Click="@(() => EditCapacity(item))" />
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenStack>
+    </RadzenCard>
+</RadzenStack>
+
+@code {
+    private RadzenDataGrid<ActivityCapacityDisplay>? _grid;
+    private List<ActivityCapacityDisplay> _activityCapacity = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        var activities = await ActivityService.GetActivitiesAsync();
+        var schedules = await ActivityService.GetSchedulesAsync(DateTime.Today);
+
+        _activityCapacity = activities.Select(a =>
+        {
+            var todaySchedules = schedules.Where(s => s.ActivityId == a.Id).ToList();
+            var booked = todaySchedules.Sum(s => s.BookedCount);
+            var effectiveCap = _overrides.TryGetValue(a.Id, out var overrideCap) ? overrideCap : a.Capacity;
+
+            return new ActivityCapacityDisplay
+            {
+                Id = a.Id,
+                Name = a.Name,
+                Type = a.Type,
+                BaseCapacity = a.Capacity,
+                OverrideCapacity = _overrides.TryGetValue(a.Id, out var oc) ? oc : (int?)null,
+                EffectiveCapacity = effectiveCap,
+                Booked = booked,
+                UtilizationPercent = effectiveCap > 0 ? (int)Math.Round((double)booked / effectiveCap * 100) : 0,
+                IsActive = a.IsActive
+            };
+        }).ToList();
+    }
+
+    private Dictionary<int, int> _overrides = new();
+
+    private async Task EditCapacity(ActivityCapacityDisplay item)
+    {
+        var result = await DialogService.OpenAsync<EditCapacityDialog>("Edit Capacity",
+            new Dictionary<string, object>
+            {
+                { "ActivityName", item.Name },
+                { "CurrentCapacity", item.EffectiveCapacity }
+            },
+            new DialogOptions { Width = "450px", Resizable = true, Draggable = true });
+
+        if (result is int newCapacity)
+        {
+            _overrides[item.Id] = newCapacity;
+            await LoadData();
+            NotificationService.Notify(NotificationSeverity.Success,
+                $"Capacity for {item.Name} updated to {newCapacity}");
+        }
+    }
+
+    private async Task OpenOverrideDialog()
+    {
+        var result = await DialogService.OpenAsync<BulkOverrideDialog>("Bulk Override Capacity",
+            new Dictionary<string, object>(),
+            new DialogOptions { Width = "500px", Resizable = true, Draggable = true });
+
+        if (result is Dictionary<int, int> bulkOverrides)
+        {
+            foreach (var kvp in bulkOverrides)
+            {
+                _overrides[kvp.Key] = kvp.Value;
+            }
+            await LoadData();
+            NotificationService.Notify(NotificationSeverity.Success, "Capacity overrides applied");
+        }
+    }
+
+    private class CapacityOverrideItem
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public int CurrentCapacity { get; set; }
+    }
+
+    private class ActivityCapacityDisplay
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public ActivityType Type { get; set; }
+        public int BaseCapacity { get; set; }
+        public int? OverrideCapacity { get; set; }
+        public int EffectiveCapacity { get; set; }
+        public int Booked { get; set; }
+        public int UtilizationPercent { get; set; }
+        public bool IsActive { get; set; }
+    }
+}

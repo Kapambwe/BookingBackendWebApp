@@ -1,0 +1,143 @@
+@page "/rangers"
+@using BookingBackendWebApp.Services.Rangers
+@inject IRangerService RangerService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<PageTitle>Ranger Deployment</PageTitle>
+
+<RadzenStack Gap="1.5rem">
+    <RadzenRow>
+        <RadzenColumn Size="12">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween">
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.75rem">
+                    <RadzenIcon Icon="security" IconStyle="IconStyle.Primary" Style="font-size: 1.75rem;" />
+                    <RadzenStack Gap="0.125rem">
+                        <RadzenText TextStyle="TextStyle.H5" TagName="TagName.H1" Style="margin: 0;">Ranger Deployment</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0; color: var(--rz-text-secondary-color);">Monitor ranger positions and deployment status</RadzenText>
+                    </RadzenStack>
+                </RadzenStack>
+                <RadzenButton Icon="refresh" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="@LoadData" Text="Refresh" />
+            </RadzenStack>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenRow Gap="1rem">
+        <RadzenColumn Size="12" SizeMD="4">
+            <RadzenCard class="rz-shadow-3" Style="height: 100%; background: linear-gradient(135deg, #1B2A4A 0%, #00897B 100%);">
+                <RadzenStack Gap="0.5rem">
+                    <RadzenIcon Icon="people" Style="font-size: 2rem; color: rgba(255,255,255,0.9);" />
+                    <RadzenText TextStyle="TextStyle.H5" Style="color: white; margin: 0; font-weight: 700;">@rangers.Count</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: rgba(255,255,255,0.9); margin: 0;">Total Rangers</RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMD="4">
+            <RadzenCard class="rz-shadow-3" Style="height: 100%; background: linear-gradient(135deg, #00897B 0%, #4DB6AC 100%);">
+                <RadzenStack Gap="0.5rem">
+                    <RadzenIcon Icon="check_circle" Style="font-size: 2rem; color: rgba(255,255,255,0.9);" />
+                    <RadzenText TextStyle="TextStyle.H5" Style="color: white; margin: 0; font-weight: 700;">@rangers.Count(r => r.IsActive)</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: rgba(255,255,255,0.9); margin: 0;">Active on Duty</RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMD="4">
+            <RadzenCard class="rz-shadow-3" Style="height: 100%; background: linear-gradient(135deg, #4DB6AC 0%, #26A69A 100%);">
+                <RadzenStack Gap="0.5rem">
+                    <RadzenIcon Icon="radio_button_checked" Style="font-size: 2rem; color: rgba(255,255,255,0.9);" />
+                    <RadzenText TextStyle="TextStyle.H5" Style="color: white; margin: 0; font-weight: 700;">@rangers.Count(r => !r.IsActive)</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: rgba(255,255,255,0.9); margin: 0;">Off Duty</RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenCard class="rz-shadow-3">
+        <RadzenStack Gap="1rem">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                <RadzenIcon Icon="map" IconStyle="IconStyle.Primary" />
+                <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">Ranger Position Map</RadzenText>
+                <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="Leaflet.js" Style="font-size: 0.7rem;" />
+            </RadzenStack>
+            <div id="ranger-map" style="height: 350px; background: #e3f2fd; border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 1px dashed #1565C0;">
+                <RadzenStack AlignItems="AlignItems.Center" Gap="0.5rem">
+                    <RadzenIcon Icon="map" Style="font-size: 3rem; color: #1565C0; opacity: 0.5;" />
+                    <RadzenText TextStyle="TextStyle.Body1" Style="color: #1565C0;">Map loading... (Leaflet.js integration)</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color);">@rangers.Count(r => r.IsActive) active ranger(s) displayed</RadzenText>
+                </RadzenStack>
+            </div>
+        </RadzenStack>
+    </RadzenCard>
+
+    <RadzenCard class="rz-shadow-3">
+        <RadzenStack Gap="1rem">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                <RadzenIcon Icon="format_list_bulleted" IconStyle="IconStyle.Primary" />
+                <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">All Rangers</RadzenText>
+                <RadzenBadge BadgeStyle="BadgeStyle.Primary" Text="@($"{rangers.Count} rangers")" />
+            </RadzenStack>
+            <RadzenDataGrid Data="@rangers" TItem="Ranger" AllowSorting="true" AllowPaging="true" PageSize="8">
+                <Columns>
+                    <RadzenDataGridColumn Title="Ranger Name" Property="Name" Width="180px" />
+                    <RadzenDataGridColumn Title="Badge #" Property="BadgeNumber" Width="120px" />
+                    <RadzenDataGridColumn Title="Status" Width="110px">
+                        <Template Context="r">
+                            <RadzenBadge Text="@(r.IsActive ? "Active" : "Off Duty")" BadgeStyle="@(r.IsActive ? BadgeStyle.Success : BadgeStyle.Secondary)" />
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn Title="Current Location" Width="240px">
+                        <Template Context="r">
+                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.25rem">
+                                <RadzenIcon Icon="location_on" Style="font-size: 0.875rem; color: #F44336;" />
+                                <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0; font-family: monospace;">
+                                    @r.CurrentLatitude.ToString("F4"), @r.CurrentLongitude.ToString("F4")
+                                </RadzenText>
+                            </RadzenStack>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn Title="Actions" Width="160px">
+                        <Template Context="r">
+                            @if (r.IsActive)
+                            {
+                                <RadzenButton ButtonStyle="ButtonStyle.Warning" Size="ButtonSize.ExtraSmall" Icon="block" Click="@(() => ToggleStatus(r.Id))" Text="Recall" />
+                            }
+                            else
+                            {
+                                <RadzenButton ButtonStyle="ButtonStyle.Success" Size="ButtonSize.ExtraSmall" Icon="play_arrow" Click="@(() => ToggleStatus(r.Id))" Text="Deploy" />
+                            }
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenStack>
+    </RadzenCard>
+</RadzenStack>
+
+@code {
+    private List<Ranger> rangers = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        rangers = await RangerService.GetRangersAsync();
+    }
+
+    private async Task ToggleStatus(int id)
+    {
+        var ranger = rangers.FirstOrDefault(r => r.Id == id);
+        if (ranger == null) return;
+
+        var action = ranger.IsActive ? "recall" : "deploy";
+        var confirmed = await DialogService.Confirm($"Are you sure you want to {action} {ranger.Name}?", "Confirm Action");
+        if (confirmed == true)
+        {
+            await RangerService.ToggleRangerStatusAsync(id);
+            NotificationService.Notify(NotificationSeverity.Success, $"{ranger.Name} {(ranger.IsActive ? "recalled" : "deployed")} successfully");
+            await LoadData();
+        }
+    }
+}

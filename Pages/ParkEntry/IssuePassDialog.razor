@@ -1,0 +1,41 @@
+@* Dialog for issuing a new park pass *@
+@inject DialogService DialogService
+
+<RadzenStack Gap="16">
+    <RadzenText TextStyle="TextStyle.H6">Issue New Park Pass</RadzenText>
+    <RadzenStack Gap="12">
+        <RadzenTextBox @bind-Value="@_visitorName" Placeholder="Visitor Name" />
+        <RadzenDropDown @bind-Value="@_passType" Data="@_passTypes" Placeholder="Pass Type" Style="width:100%" />
+        <RadzenDatePicker @bind-Value="@_issueDate" DateFormat="yyyy-MM-dd" Style="width:100%" />
+    </RadzenStack>
+    <RadzenStack Horizontal="true" JustifyContent="JustifyContent.End" Gap="8">
+        <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Base" Click="@(() => DialogService.Close(null))" />
+        <RadzenButton Text="Issue" ButtonStyle="ButtonStyle.Primary" Click="@Submit" />
+    </RadzenStack>
+</RadzenStack>
+
+@code {
+    private string _visitorName = string.Empty;
+    private PassType _passType = PassType.Daily;
+    private DateTime _issueDate = DateTime.Today;
+    private List<PassType> _passTypes = new() { PassType.Daily, PassType.Weekly, PassType.Annual };
+
+    private void Submit()
+    {
+        var pass = new ParkPass
+        {
+            PassNumber = $"PASS-{DateTime.Today:yyyyMMdd}-{new Random().Next(1000, 9999)}",
+            VisitorName = _visitorName,
+            PassType = _passType,
+            IssueDate = _issueDate,
+            ExpiryDate = _passType switch
+            {
+                PassType.Daily => _issueDate,
+                PassType.Weekly => _issueDate.AddDays(7),
+                PassType.Annual => _issueDate.AddYears(1),
+                _ => _issueDate
+            }
+        };
+        DialogService.Close(pass);
+    }
+}

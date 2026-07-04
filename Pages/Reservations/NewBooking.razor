@@ -1,0 +1,322 @@
+@page "/reservations/new"
+@attribute [Authorize(Policy = "BookingCreate")]
+@using Microsoft.AspNetCore.Authorization
+@inject IBookingService BookingService
+@inject IPackageService PackageService
+@inject IAccommodationService AccommodationService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+@inject NavigationManager NavigationManager
+
+<RadzenCard>
+    <RadzenStack Gap="16">
+        <RadzenText Tag="H2" TextStyle="TextStyle.H3">New Reservation</RadzenText>
+
+        <RadzenTemplateForm TItem="Booking" Model="@_model" Data="@_model" Submit="@OnSave">
+            <RadzenStack Gap="24">
+                <RadzenCard>
+                    <RadzenStack Gap="12">
+                        <RadzenText TextStyle="TextStyle.Subtitle1">Guest Information</RadzenText>
+                        <RadzenRow Gap="8">
+                            <RadzenColumn Size="6">
+                                <div class="form-group">
+                                    <label>Full Name *</label>
+                                    <RadzenTextBox @bind-Value="@_model.GuestName" Placeholder="Enter guest name" />
+                                    <RadzenRequiredValidator ComponentId="guestName" Text="Name is required" />
+                                </div>
+                            </RadzenColumn>
+                            <RadzenColumn Size="6">
+                                <div class="form-group">
+                                    <label>Email *</label>
+                                    <RadzenTextBox @bind-Value="@_model.GuestEmail" Placeholder="Enter email address" />
+                                    <RadzenEmailValidator ComponentId="guestEmail" Text="Valid email is required" />
+                                </div>
+                            </RadzenColumn>
+                        </RadzenRow>
+                        <RadzenRow Gap="8">
+                            <RadzenColumn Size="6">
+                                <div class="form-group">
+                                    <label>Phone</label>
+                                    <RadzenTextBox @bind-Value="@_model.GuestPhone" Placeholder="Enter phone number" />
+                                </div>
+                            </RadzenColumn>
+                            <RadzenColumn Size="6">
+                                <div class="form-group">
+                                    <label>Nationality</label>
+                                    <RadzenTextBox @bind-Value="@_model.Nationality" Placeholder="Enter nationality" />
+                                </div>
+                            </RadzenColumn>
+                        </RadzenRow>
+                    </RadzenStack>
+                </RadzenCard>
+
+                <RadzenCard>
+                    <RadzenStack Gap="12">
+                        <RadzenText TextStyle="TextStyle.Subtitle1">Booking Details</RadzenText>
+                        <RadzenRow Gap="8">
+                            <RadzenColumn Size="4">
+                                <div class="form-group">
+                                    <label>Booking Type *</label>
+                                    <RadzenDropDown @bind-Value="@_model.BookingType"
+                                                    Data="@_bookingTypes"
+                                                    TextProperty="Text"
+                                                    ValueProperty="Value"
+                                                    Placeholder="Select type" />
+                                    <RadzenRequiredValidator ComponentId="bookingType" Text="Type is required" />
+                                </div>
+                            </RadzenColumn>
+                            <RadzenColumn Size="4">
+                                <div class="form-group">
+                                    <label>Check-In Date *</label>
+                                    <RadzenDatePicker @bind-Value="@_model.CheckInDate" />
+                                    <RadzenRequiredValidator ComponentId="checkIn" Text="Check-in is required" />
+                                </div>
+                            </RadzenColumn>
+                            <RadzenColumn Size="4">
+                                <div class="form-group">
+                                    <label>Check-Out Date *</label>
+                                    <RadzenDatePicker @bind-Value="@_model.CheckOutDate" />
+                                    <RadzenRequiredValidator ComponentId="checkOut" Text="Check-out is required" />
+                                </div>
+                            </RadzenColumn>
+                        </RadzenRow>
+                        <RadzenRow Gap="8">
+                            <RadzenColumn Size="4">
+                                <div class="form-group">
+                                    <label>Adults</label>
+                                    <RadzenNumeric @bind-Value="@_model.Adults" Min="1" Max="20" />
+                                </div>
+                            </RadzenColumn>
+                            <RadzenColumn Size="4">
+                                <div class="form-group">
+                                    <label>Children</label>
+                                    <RadzenNumeric @bind-Value="@_model.Children" Min="0" Max="10" />
+                                </div>
+                            </RadzenColumn>
+                        </RadzenRow>
+                    </RadzenStack>
+                </RadzenCard>
+
+                <RadzenCard>
+                    <RadzenStack Gap="12">
+                        <RadzenText TextStyle="TextStyle.Subtitle1">Package & Room</RadzenText>
+                        <RadzenRow Gap="8">
+                            <RadzenColumn Size="6">
+                                <div class="form-group">
+                                    <label>Package</label>
+                                    <RadzenDropDown @bind-Value="@_selectedPackageId"
+                                                    Data="@_packages"
+                                                    TextProperty="Name"
+                                                    ValueProperty="Id"
+                                                    Placeholder="Select package (optional)"
+                                                    Change="@OnPackageChanged" />
+                                </div>
+                            </RadzenColumn>
+                            <RadzenColumn Size="6">
+                                <div class="form-group">
+                                    <label>Room</label>
+                                    <RadzenDropDown @bind-Value="@_selectedRoomId"
+                                                    Data="@_rooms"
+                                                    TextProperty="RoomNumber"
+                                                    ValueProperty="Id"
+                                                    Placeholder="Select room (optional)" />
+                                </div>
+                            </RadzenColumn>
+                        </RadzenRow>
+                    </RadzenStack>
+                </RadzenCard>
+
+                <RadzenCard>
+                    <RadzenStack Gap="12">
+                        <RadzenStack Horizontal="true" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+                            <RadzenText TextStyle="TextStyle.Subtitle1">Line Items</RadzenText>
+                            <RadzenButton Text="Add Item" ButtonStyle="ButtonStyle.Light"
+                                          Click="@AddLineItem" />
+                        </RadzenStack>
+
+                        <RadzenDataGrid Data="@_model.LineItems" AllowPaging="false" AllowSorting="false">
+                            <Columns>
+                                <RadzenDataGridColumn TItem="BookingLineItem" Property="Description" Title="Description" Width="300px">
+                                    <Template Context="item">
+                                        <RadzenTextBox @bind-Value="@item.Description" Placeholder="Item description" />
+                                    </Template>
+                                </RadzenDataGridColumn>
+                                <RadzenDataGridColumn TItem="BookingLineItem" Property="Quantity" Title="Qty" Width="100px">
+                                    <Template Context="item">
+                                        <RadzenNumeric @bind-Value="@item.Quantity" Min="1" Max="999" Change="@((int _) => RecalculateLineItem(item))" />
+                                    </Template>
+                                </RadzenDataGridColumn>
+                                <RadzenDataGridColumn TItem="BookingLineItem" Property="UnitPrice" Title="Unit Price" Width="140px">
+                                    <Template Context="item">
+                                        <RadzenNumeric @bind-Value="@item.UnitPrice" Min="0" Change="@((decimal _) => RecalculateLineItem(item))" />
+                                    </Template>
+                                </RadzenDataGridColumn>
+                                <RadzenDataGridColumn TItem="BookingLineItem" Property="TotalPrice" Title="Total" Width="120px">
+                                    <Template Context="item">
+                                        @item.TotalPrice.ToString("N0")
+                                    </Template>
+                                </RadzenDataGridColumn>
+                                <RadzenDataGridColumn TItem="BookingLineItem" Title="" Width="80px">
+                                    <Template Context="item">
+                                        <RadzenButton Icon="delete" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Danger"
+                                                      Click="@(() => RemoveLineItem(item))" />
+                                    </Template>
+                                </RadzenDataGridColumn>
+                            </Columns>
+                        </RadzenDataGrid>
+
+                        <RadzenRow>
+                            <RadzenColumn Offset="9" Size="3">
+                                <RadzenStack Gap="8">
+                                    <RadzenRow>
+                                        <RadzenColumn Size="6"><RadzenText TextStyle="TextStyle.Subtitle2">Total Amount:</RadzenText></RadzenColumn>
+                                        <RadzenColumn Size="6" Style="text-align: right;">
+                                            <RadzenText TextStyle="TextStyle.Subtitle2">@_model.TotalAmount.ToString("N0") KES</RadzenText>
+                                        </RadzenColumn>
+                                    </RadzenRow>
+                                </RadzenStack>
+                            </RadzenColumn>
+                        </RadzenRow>
+                    </RadzenStack>
+                </RadzenCard>
+
+                <RadzenCard>
+                    <RadzenStack Gap="12">
+                        <RadzenText TextStyle="TextStyle.Subtitle1">Payment</RadzenText>
+                        <RadzenRow Gap="8">
+                            <RadzenColumn Size="6">
+                                <div class="form-group">
+                                    <label>Amount Paid</label>
+                                    <RadzenNumeric @bind-Value="@_model.PaidAmount" Min="0" Change="@((decimal _) => _model.BalanceAmount = _model.TotalAmount - _model.PaidAmount)" />
+                                </div>
+                            </RadzenColumn>
+                            <RadzenColumn Size="6">
+                                <div class="form-group">
+                                    <label>Notes</label>
+                                    <RadzenTextArea @bind-Value="@_model.Notes" Placeholder="Additional notes..." Rows="3" />
+                                </div>
+                            </RadzenColumn>
+                        </RadzenRow>
+                    </RadzenStack>
+                </RadzenCard>
+
+                <RadzenRow Gap="8" JustifyContent="JustifyContent.End">
+                    <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Light" Click="@OnCancel" />
+                    <RadzenButton Text="Save Reservation" ButtonStyle="ButtonStyle.Primary" ButtonType="ButtonType.Submit" />
+                </RadzenRow>
+            </RadzenStack>
+        </RadzenTemplateForm>
+    </RadzenStack>
+</RadzenCard>
+
+@code {
+    private Booking _model = new();
+    private List<Package> _packages = new();
+    private List<Room> _rooms = new();
+    private int? _selectedPackageId;
+    private int? _selectedRoomId;
+    private int _nextLineItemId = 1;
+
+    private List<TypeOption> _bookingTypes = Enum.GetValues<BookingType>()
+        .Select(t => new TypeOption { Text = GetDisplayName(t), Value = t })
+        .ToList();
+
+    private class TypeOption
+    {
+        public string Text { get; set; } = "";
+        public BookingType Value { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _model.CheckInDate = DateTime.Today;
+        _model.CheckOutDate = DateTime.Today.AddDays(1);
+        _model.Adults = 1;
+        _model.Status = BookingStatus.Pending;
+
+        _packages = await PackageService.GetPackagesAsync();
+        _rooms = await AccommodationService.GetRoomsAsync();
+    }
+
+    private async Task OnSave()
+    {
+        _model.PackageId = _selectedPackageId;
+        _model.RoomId = _selectedRoomId;
+        _model.BalanceAmount = _model.TotalAmount - _model.PaidAmount;
+        _model.LineItems = _model.LineItems.Where(li => !string.IsNullOrWhiteSpace(li.Description)).ToList();
+
+        var result = await BookingService.CreateBookingAsync(_model);
+
+        NotificationService.Notify(new NotificationMessage
+        {
+            Severity = NotificationSeverity.Success,
+            Summary = "Booking Created",
+            Detail = $"Booking {result.BookingNumber} has been created.",
+            Duration = 4000
+        });
+
+        NavigationManager.NavigateTo("/reservations");
+    }
+
+    private void OnCancel()
+    {
+        NavigationManager.NavigateTo("/reservations");
+    }
+
+    private void OnPackageChanged()
+    {
+        if (_selectedPackageId.HasValue)
+        {
+            var pkg = _packages.FirstOrDefault(p => p.Id == _selectedPackageId.Value);
+            if (pkg is not null)
+                _model.TotalAmount = pkg.BasePrice;
+        }
+    }
+
+    private void AddLineItem()
+    {
+        _model.LineItems.Add(new BookingLineItem
+        {
+            Id = _nextLineItemId++,
+            Description = "",
+            Quantity = 1,
+            UnitPrice = 0,
+            TotalPrice = 0,
+            Date = DateTime.Today
+        });
+    }
+
+    private void RemoveLineItem(BookingLineItem item)
+    {
+        _model.LineItems.Remove(item);
+        RecalculateTotal();
+    }
+
+    private void RecalculateLineItem(BookingLineItem item)
+    {
+        item.TotalPrice = item.Quantity * item.UnitPrice;
+        RecalculateTotal();
+    }
+
+    private void RecalculateTotal()
+    {
+        _model.TotalAmount = _model.LineItems.Sum(li => li.TotalPrice);
+    }
+
+    private static string GetDisplayName(BookingType type) => type switch
+    {
+        BookingType.Room => "Room",
+        BookingType.Chalet => "Chalet",
+        BookingType.Tent => "Tent",
+        BookingType.Campsite => "Campsite",
+        BookingType.GameDrive => "Game Drive",
+        BookingType.BoatCruise => "Boat Cruise",
+        BookingType.FishingPermit => "Fishing Permit",
+        BookingType.HikingPermit => "Hiking Permit",
+        BookingType.ParkEntry => "Park Entry",
+        BookingType.PhotographyPermit => "Photography Permit",
+        BookingType.BirdWatching => "Bird Watching",
+        BookingType.SafariPackage => "Safari Package",
+        _ => type.ToString()
+    };
+}

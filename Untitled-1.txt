@@ -1,0 +1,427 @@
+@page "/projects"
+@using Radzen
+@using Radzen.Blazor
+@using CompanyApp.Component.NonStateActor.Models
+@using CompanyApp.Component.NonStateActor.Services
+
+@inject IProjectService ProjectService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<PageTitle>Project Management</PageTitle>
+
+<RadzenStack Gap="1.5rem">
+    <!-- Header -->
+    <RadzenRow>
+        <RadzenColumn Size="12">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween">
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.75rem">
+                    <RadzenIcon Icon="work" IconStyle="IconStyle.Primary" Style="font-size: 1.75rem;" />
+                    <RadzenStack Gap="0.125rem">
+                        <RadzenText TextStyle="TextStyle.H5" TagName="TagName.H1" Style="margin: 0;">Project & Program Management</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0; color: var(--rz-text-secondary-color);">Create and manage agricultural projects, assign farmers, and track goals</RadzenText>
+                    </RadzenStack>
+                </RadzenStack>
+                <RadzenButton Icon="add" Click="ShowCreateProjectDialog" Text="Create New Project" ButtonStyle="ButtonStyle.Success" Size="ButtonSize.Small" />
+            </RadzenStack>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <!-- Analytics Cards -->
+    <RadzenRow Gap="1rem">
+        <RadzenColumn Size="12" SizeMD="6" SizeLG="4" SizeXL="2">
+            <RadzenCard class="rz-shadow-3" Style="height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <RadzenStack Gap="0.5rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Start">
+                        <RadzenIcon Icon="folder" Style="font-size: 2rem; color: rgba(255,255,255,0.9);" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="Total" Style="font-size: 0.7rem;" />
+                    </RadzenStack>
+                    <RadzenText TextStyle="TextStyle.H5" Style="color: white; margin: 0; font-weight: 700;">
+                        @GetTotalProjects()
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: rgba(255,255,255,0.9); margin: 0;">
+                        Total Projects
+                    </RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+
+        <RadzenColumn Size="12" SizeMD="6" SizeLG="4" SizeXL="2">
+            <RadzenCard class="rz-shadow-3" Style="height: 100%; background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                <RadzenStack Gap="0.5rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Start">
+                        <RadzenIcon Icon="check_circle" Style="font-size: 2rem; color: rgba(255,255,255,0.9);" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="Active" Style="font-size: 0.7rem;" />
+                    </RadzenStack>
+                    <RadzenText TextStyle="TextStyle.H5" Style="color: white; margin: 0; font-weight: 700;">
+                        @GetActiveProjects()
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: rgba(255,255,255,0.9); margin: 0;">
+                        Active Projects
+                    </RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+
+        <RadzenColumn Size="12" SizeMD="6" SizeLG="4" SizeXL="2">
+            <RadzenCard class="rz-shadow-3" Style="height: 100%; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <RadzenStack Gap="0.5rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Start">
+                        <RadzenIcon Icon="people" Style="font-size: 2rem; color: rgba(255,255,255,0.9);" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="Enrolled" Style="font-size: 0.7rem;" />
+                    </RadzenStack>
+                    <RadzenText TextStyle="TextStyle.H5" Style="color: white; margin: 0; font-weight: 700;">
+                        @GetTotalFarmersEnrolled()
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: rgba(255,255,255,0.9); margin: 0;">
+                        Total Farmers
+                    </RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+
+        <RadzenColumn Size="12" SizeMD="6" SizeLG="4" SizeXL="3">
+            <RadzenCard class="rz-shadow-3" Style="height: 100%; background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                <RadzenStack Gap="0.5rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Start">
+                        <RadzenIcon Icon="trending_up" Style="font-size: 2rem; color: rgba(255,255,255,0.9);" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="Rate" Style="font-size: 0.7rem;" />
+                    </RadzenStack>
+                    <RadzenText TextStyle="TextStyle.H5" Style="color: white; margin: 0; font-weight: 700;">
+                        @string.Format("{0:F1}%", averageEnrollmentRate)
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: rgba(255,255,255,0.9); margin: 0;">
+                        Avg Enrollment Rate
+                    </RadzenText>
+                    <RadzenProgressBar Value="@((double)averageEnrollmentRate)" Max="100" Style="height: 4px;" />
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+
+        <RadzenColumn Size="12" SizeMD="6" SizeLG="4" SizeXL="3">
+            <RadzenCard class="rz-shadow-3" Style="height: 100%; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <RadzenStack Gap="0.5rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Start">
+                        <RadzenIcon Icon="account_balance_wallet" Style="font-size: 2rem; color: rgba(255,255,255,0.9);" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="Budget" Style="font-size: 0.7rem;" />
+                    </RadzenStack>
+                    <RadzenText TextStyle="TextStyle.H5" Style="color: white; margin: 0; font-weight: 700;">
+                        @string.Format("{0:F1}%", budgetUtilization)
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: rgba(255,255,255,0.9); margin: 0;">
+                        Budget Utilization
+                    </RadzenText>
+                    <RadzenProgressBar Value="@((double)budgetUtilization)" Max="100" Style="height: 4px;" />
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <!-- Projects DataGrid -->
+    <RadzenCard class="rz-shadow-3">
+        <RadzenStack Gap="1rem">
+            <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                    <RadzenIcon Icon="view_list" IconStyle="IconStyle.Primary" />
+                    <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">All Projects</RadzenText>
+                    <RadzenBadge BadgeStyle="BadgeStyle.Primary" Text="@($"{filteredProjects.Count} projects")" />
+                </RadzenStack>
+                <RadzenButton Icon="filter_list" Click="() => showFilters = !showFilters" ButtonStyle="ButtonStyle.Light"
+                            Text="@(showFilters ? "Hide Filters" : "Show Filters")" Size="ButtonSize.Small" />
+            </RadzenStack>
+
+            @if (showFilters)
+            {
+                <RadzenCard Style="background: #f8f9fa;">
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" Wrap="FlexWrap.Wrap">
+                        <RadzenStack Gap="0.25rem" Style="min-width: 180px;">
+                            <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0; font-weight: 600;">Status</RadzenText>
+                            <RadzenDropDown @bind-Value="selectedStatus" Data="@statusOptions" Placeholder="All Status"
+                                          AllowClear="true" Change="OnFilterChanged" Style="width: 100%;" />
+                        </RadzenStack>
+                        <RadzenStack Gap="0.25rem" Style="min-width: 180px;">
+                            <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0; font-weight: 600;">Type</RadzenText>
+                            <RadzenDropDown @bind-Value="selectedType" Data="@typeOptions" Placeholder="All Types"
+                                          AllowClear="true" Change="OnFilterChanged" Style="width: 100%;" />
+                        </RadzenStack>
+                        <RadzenStack Gap="0.25rem" Style="min-width: 220px;">
+                            <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0; font-weight: 600;">Search</RadzenText>
+                            <RadzenTextBox @bind-Value="searchTerm" Placeholder="Search projects..." Change="OnSearchChanged" Style="width: 100%;" />
+                        </RadzenStack>
+                    </RadzenStack>
+                </RadzenCard>
+            }
+
+            <RadzenDataGrid @ref=grid Data=@filteredProjects TItem="Project" AllowFiltering="true" AllowSorting="true"
+                          AllowPaging="true" PageSize=8 class="rz-datatable-scrollable" Style="height: 500px;">
+                <Columns>
+                    <RadzenDataGridColumn Title="Project Code" Property="ProjectCode" Width="140px" Frozen="true">
+                        <Template Context="project">
+                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                                <RadzenIcon Icon="tag" IconStyle="IconStyle.Secondary" Style="font-size: 1rem;" />
+                                <RadzenText TextStyle="TextStyle.Body2" Style="margin: 0; font-weight: 600;">@project.ProjectCode</RadzenText>
+                            </RadzenStack>
+                        </Template>
+                    </RadzenDataGridColumn>
+
+                    <RadzenDataGridColumn Title="Project Name" Property="ProjectName" Width="220px">
+                        <Template Context="project">
+                            <RadzenStack Gap="0.25rem">
+                                <RadzenText TextStyle="TextStyle.Subtitle2" Style="margin: 0; font-weight: 600;">@project.ProjectName</RadzenText>
+                                <RadzenBadge Text="@project.Type.ToString()" BadgeStyle="BadgeStyle.Info" Style="font-size: 0.7rem;" />
+                            </RadzenStack>
+                        </Template>
+                    </RadzenDataGridColumn>
+
+                    <RadzenDataGridColumn Title="Status" Width="120px">
+                        <Template Context="project">
+                            <RadzenBadge Text="@project.Status.ToString()"
+                                        BadgeStyle="@GetProjectStatusBadgeStyle(project.Status)" />
+                        </Template>
+                    </RadzenDataGridColumn>
+
+                    <RadzenDataGridColumn Title="Timeline" Width="180px">
+                        <Template Context="project">
+                            <RadzenStack Gap="0.25rem">
+                                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.25rem">
+                                    <RadzenIcon Icon="date_range" IconStyle="IconStyle.Info" Style="font-size: 0.875rem;" />
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0;">@GetProjectTimeline(project)</RadzenText>
+                                </RadzenStack>
+                                <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0; color: var(--rz-text-secondary-color); font-size: 0.7rem;">
+                                    @GetDaysRemaining(project)
+                                </RadzenText>
+                            </RadzenStack>
+                        </Template>
+                    </RadzenDataGridColumn>
+
+                    <RadzenDataGridColumn Title="Enrollment" Width="150px">
+                        <Template Context="project">
+                            <RadzenStack Gap="0.25rem">
+                                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.25rem">
+                                    <RadzenIcon Icon="people" IconStyle="IconStyle.Success" Style="font-size: 0.875rem;" />
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0; font-weight: 600;">@GetEnrollmentProgress(project)</RadzenText>
+                                </RadzenStack>
+                                <RadzenProgressBar Value="@((double)(project.TargetFarmers > 0 ? (decimal)project.EnrolledFarmers / project.TargetFarmers * 100 : 0))"
+                                                  Max="100" Style="height: 4px;" />
+                            </RadzenStack>
+                        </Template>
+                    </RadzenDataGridColumn>
+
+                    <RadzenDataGridColumn Title="Progress" Width="120px">
+                        <Template Context="project">
+                            @{
+                                var progress = CalculateOverallProgress(project);
+                            }
+                            <RadzenBadge Text="@($"{progress:F0}%")"
+                                        BadgeStyle="@GetOverallProgressBadgeStyle(progress)" />
+                        </Template>
+                    </RadzenDataGridColumn>
+
+                    <RadzenDataGridColumn Title="Actions" Width="180px" Filterable="false" Sortable="false">
+                        <Template Context="project">
+                            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.25rem">
+                                <RadzenButton Icon="group_add" ButtonStyle="ButtonStyle.Info" Size="ButtonSize.Small"
+                                            Click="@(e => AssignFarmers(project))" Tooltip="Assign Farmers" />
+                                <RadzenButton Icon="trending_up" ButtonStyle="ButtonStyle.Success" Size="ButtonSize.Small"
+                                            Click="@(e => ViewProgress(project))" Tooltip="View Progress" />
+                                <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small"
+                                            Click="@(e => EditProject(project))" Tooltip="Edit" />
+                                <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small"
+                                            Click="@(e => DeleteProject(project))" Tooltip="Delete" />
+                            </RadzenStack>
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenStack>
+    </RadzenCard>
+</RadzenStack>
+
+@code {
+    private List<Project> projects = new();
+    private List<Project> filteredProjects = new();
+    private RadzenDataGrid<Project> grid;
+
+    private string selectedStatus;
+    private string selectedType;
+    private string searchTerm;
+    private bool showFilters = false;
+
+    private int totalProjects = 0;
+    private int activeProjects = 0;
+    private int totalFarmersEnrolled = 0;
+    private decimal averageEnrollmentRate = 0;
+    private decimal budgetUtilization = 0;
+
+    private readonly List<string> statusOptions = Enum.GetNames(typeof(ProjectStatus)).ToList();
+    private readonly List<string> typeOptions = Enum.GetNames(typeof(ProjectType)).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        projects = await ProjectService.GetProjectsAsync();
+        CalculateStatistics();
+        ApplyFilters();
+    }
+
+    private void CalculateStatistics()
+    {
+        totalProjects = projects.Count;
+        activeProjects = projects.Count(p => p.Status == ProjectStatus.Active);
+        totalFarmersEnrolled = projects.Sum(p => p.EnrolledFarmers);
+        averageEnrollmentRate = projects.Any() ? projects.Average(p => p.TargetFarmers > 0 ? (decimal)p.EnrolledFarmers / p.TargetFarmers * 100 : 0) : 0;
+        budgetUtilization = projects.Any() ? projects.Average(p => p.TotalBudget > 0 ? (p.FundsUtilized / p.TotalBudget) * 100 : 0) : 0;
+    }
+
+    private void ApplyFilters()
+    {
+        filteredProjects = projects.AsEnumerable().ToList();
+
+        if (!string.IsNullOrEmpty(selectedStatus))
+            filteredProjects = filteredProjects.Where(p => p.Status.ToString() == selectedStatus).ToList();
+
+        if (!string.IsNullOrEmpty(selectedType))
+            filteredProjects = filteredProjects.Where(p => p.Type.ToString() == selectedType).ToList();
+
+        if (!string.IsNullOrEmpty(searchTerm))
+            filteredProjects = filteredProjects.Where(p =>
+                p.ProjectName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                p.ProjectCode.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                p.Description.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        filteredProjects = filteredProjects.ToList();
+    }
+
+    private void OnFilterChanged()
+    {
+        ApplyFilters();
+        StateHasChanged();
+    }
+
+    private void OnSearchChanged()
+    {
+        ApplyFilters();
+        StateHasChanged();
+    }
+
+    private decimal CalculateOverallProgress(Project project)
+    {
+        var metrics = new[]
+        {
+            project.TargetFarmers > 0 ? (decimal)project.EnrolledFarmers / project.TargetFarmers * 100 : 0,
+            project.TargetLandArea > 0 ? project.ActualLandArea / project.TargetLandArea * 100 : 0,
+            project.TargetYield > 0 ? project.CurrentYield / project.TargetYield * 100 : 0,
+            project.TargetIncomeIncrease > 0 ? project.CurrentIncomeIncrease / project.TargetIncomeIncrease * 100 : 0,
+            project.TargetAdoptionRate > 0 ? (decimal)project.CurrentAdoptionRate / project.TargetAdoptionRate * 100 : 0
+        };
+
+        return metrics.Average();
+    }
+
+    private async void ShowCreateProjectDialog()
+    {
+        await DialogService.OpenAsync<CreateProjectDialog>("Create New Project",
+            new Dictionary<string, object>(),
+            new DialogOptions() { Width = "800px", Height = "700px", Resizable = true, Draggable = true });
+
+        await LoadData();
+    }
+
+    private async void AssignFarmers(Project project)
+    {
+        await DialogService.OpenAsync<AssignFarmersDialog>("Assign Farmers to Project",
+            new Dictionary<string, object> { { "Project", project } },
+            new DialogOptions() { Width = "900px", Height = "700px", Resizable = true, Draggable = true });
+
+        await LoadData();
+    }
+
+    private async void ViewProgress(Project project)
+    {
+        await DialogService.OpenAsync<ProjectProgressDialog>("Project Progress",
+            new Dictionary<string, object> { { "ProjectId", project.Id } },
+            new DialogOptions() { Width = "1000px", Height = "800px", Resizable = true, Draggable = true });
+    }
+
+    private async void EditProject(Project project)
+    {
+        await DialogService.OpenAsync<EditProjectDialog>("Edit Project",
+            new Dictionary<string, object> { { "Project", project } },
+            new DialogOptions() { Width = "800px", Height = "700px", Resizable = true, Draggable = true });
+
+        await LoadData();
+    }
+
+    private async Task DeleteProject(Project project)
+    {
+        var result = await DialogService.Confirm($"Are you sure you want to delete project {project.ProjectName}?", "Delete Project",
+            new ConfirmOptions() { OkButtonText = "Yes", CancelButtonText = "No" });
+
+        if (result == true)
+        {
+            var success = await ProjectService.DeleteProjectAsync(project.Id);
+            if (success)
+            {
+                NotificationService.Notify(NotificationSeverity.Success, "Success", "Project deleted successfully");
+                await LoadData();
+            }
+            else
+            {
+                NotificationService.Notify(NotificationSeverity.Error, "Error", "Failed to delete project");
+            }
+        }
+    }
+
+    private string GetTotalProjects()
+    {
+        return totalProjects.ToString("N0");
+    }
+
+    private string GetActiveProjects()
+    {
+        return activeProjects.ToString("N0");
+    }
+
+    private string GetTotalFarmersEnrolled()
+    {
+        return totalFarmersEnrolled.ToString("N0");
+    }
+
+    private BadgeStyle GetProjectStatusBadgeStyle(ProjectStatus status)
+    {
+        return status switch
+        {
+            ProjectStatus.Active => BadgeStyle.Success,
+            ProjectStatus.Completed => BadgeStyle.Info,
+            ProjectStatus.Planning => BadgeStyle.Warning,
+            _ => BadgeStyle.Secondary
+        };
+    }
+
+    private string GetProjectTimeline(Project project)
+    {
+        return $"{project.StartDate.ToString("MMM yyyy")} - {project.EndDate.ToString("MMM yyyy")}";
+    }
+
+    private string GetDaysRemaining(Project project)
+    {
+        var days = (project.EndDate - DateTime.Now).Days;
+        return days > 0 ? $"{days} days remaining" : "Overdue";
+    }
+
+    private string GetEnrollmentProgress(Project project)
+    {
+        return $"{project.EnrolledFarmers} / {project.TargetFarmers}";
+    }
+
+    private BadgeStyle GetOverallProgressBadgeStyle(decimal progress)
+    {
+        if (progress >= 80) return BadgeStyle.Success;
+        if (progress >= 50) return BadgeStyle.Warning;
+        return BadgeStyle.Primary;
+    }
+}

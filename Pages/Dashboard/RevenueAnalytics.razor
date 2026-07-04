@@ -1,0 +1,304 @@
+@page "/dashboard/revenue"
+@using Radzen
+@using Radzen.Blazor
+@using BookingBackendWebApp.Models
+@using BookingBackendWebApp.Services
+@using BookingBackendWebApp.Services.Bookings
+@using BookingBackendWebApp.Services.RevenueManagement
+@using BookingBackendWebApp.Services.Conservation
+@using BookingBackendWebApp.Services.GovernmentIntelligence
+
+@inject IBookingService BookingService
+@inject IPackageService PackageService
+@inject IAccommodationService AccommodationService
+@inject IRevenueManagementService RevenueManagementService
+@inject IConservationService ConservationService
+@inject IGovernmentIntelligenceService GovernmentIntelligenceService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+@inject TooltipService TooltipService
+
+<PageTitle>Revenue Analytics</PageTitle>
+
+<RadzenStack Gap="1.5rem">
+    <RadzenRow>
+        <RadzenColumn Size="12">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween">
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.75rem">
+                    <RadzenIcon Icon="trending_up" IconStyle="IconStyle.Primary" Style="font-size: 1.75rem;" />
+                    <RadzenStack Gap="0.125rem">
+                        <RadzenText TextStyle="TextStyle.H5" TagName="TagName.H1" Style="margin: 0;">Revenue Analytics</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0; color: var(--rz-text-secondary-color);">Revenue breakdown by package, accommodation, and activities</RadzenText>
+                    </RadzenStack>
+                </RadzenStack>
+                <RadzenButton Icon="refresh" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="@LoadData" Text="Refresh" />
+            </RadzenStack>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenRow Gap="1rem">
+        <RadzenColumn Size="12" SizeMD="6" SizeLG="3">
+            <RadzenCard class="rz-shadow-3" Style="height: 100%; background: linear-gradient(135deg, #1B2A4A 0%, #00897B 100%);">
+                <RadzenStack Gap="0.5rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Start">
+                        <RadzenIcon Icon="account_balance" Style="font-size: 2rem; color: rgba(255,255,255,0.9);" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="YTD" Style="font-size: 0.7rem;" />
+                    </RadzenStack>
+                    <RadzenText TextStyle="TextStyle.H5" Style="color: white; margin: 0; font-weight: 700;">
+                        @string.Format("{0:N0}", totalRevenueYtd)
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: rgba(255,255,255,0.9); margin: 0;">
+                        Total Revenue YTD (KES)
+                    </RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMD="6" SizeLG="3">
+            <RadzenCard class="rz-shadow-3" Style="height: 100%; background: linear-gradient(135deg, #00897B 0%, #4DB6AC 100%);">
+                <RadzenStack Gap="0.5rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Start">
+                        <RadzenIcon Icon="hotel" Style="font-size: 2rem; color: rgba(255,255,255,0.9);" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="MTD" Style="font-size: 0.7rem;" />
+                    </RadzenStack>
+                    <RadzenText TextStyle="TextStyle.H5" Style="color: white; margin: 0; font-weight: 700;">
+                        @string.Format("{0:N0}", accommodationRevenue)
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: rgba(255,255,255,0.9); margin: 0;">
+                        Accommodation Revenue
+                    </RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMD="6" SizeLG="3">
+            <RadzenCard class="rz-shadow-3" Style="height: 100%; background: linear-gradient(135deg, #4DB6AC 0%, #26A69A 100%);">
+                <RadzenStack Gap="0.5rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Start">
+                        <RadzenIcon Icon="inventory_2" Style="font-size: 2rem; color: rgba(255,255,255,0.9);" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="MTD" Style="font-size: 0.7rem;" />
+                    </RadzenStack>
+                    <RadzenText TextStyle="TextStyle.H5" Style="color: white; margin: 0; font-weight: 700;">
+                        @string.Format("{0:N0}", packageRevenue)
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: rgba(255,255,255,0.9); margin: 0;">
+                        Package Revenue
+                    </RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMD="6" SizeLG="3">
+            <RadzenCard class="rz-shadow-3" Style="height: 100%; background: linear-gradient(135deg, #26A69A 0%, #80CBC4 100%);">
+                <RadzenStack Gap="0.5rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Start">
+                        <RadzenIcon Icon="hiking" Style="font-size: 2rem; color: rgba(255,255,255,0.9);" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="MTD" Style="font-size: 0.7rem;" />
+                    </RadzenStack>
+                    <RadzenText TextStyle="TextStyle.H5" Style="color: white; margin: 0; font-weight: 700;">
+                        @string.Format("{0:N0}", activityRevenue)
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: rgba(255,255,255,0.9); margin: 0;">
+                        Activity Revenue
+                    </RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenRow Gap="1rem">
+        <RadzenColumn Size="12" SizeLG="8">
+            <RadzenCard class="rz-shadow-3">
+                <RadzenStack Gap="1rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                        <RadzenIcon Icon="bar_chart" IconStyle="IconStyle.Primary" />
+                        <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">Monthly Revenue</RadzenText>
+                    </RadzenStack>
+                    <RadzenChart>
+                        <RadzenBarSeries Data="@monthlyRevenue" CategoryProperty="Month" ValueProperty="Revenue" Smooth="true">
+                            <RadzenSeriesConfiguration>
+                                <RadzenSeriesColor Color="#00897B" />
+                            </RadzenSeriesConfiguration>
+                        </RadzenBarSeries>
+                        <RadzenLegend Position="LegendPosition.Bottom" />
+                        <RadzenValueAxis Title="Revenue (KES)" />
+                    </RadzenChart>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeLG="4">
+            <RadzenCard class="rz-shadow-3">
+                <RadzenStack Gap="1rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                        <RadzenIcon Icon="pie_chart" IconStyle="IconStyle.Primary" />
+                        <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">Revenue Breakdown</RadzenText>
+                    </RadzenStack>
+                    <RadzenChart>
+                        <RadzenPieSeries Data="@revenueBreakdown" CategoryProperty="Category" ValueProperty="Amount">
+                            <RadzenSeriesConfiguration>
+                                <RadzenSeriesColor Color="#1B2A4A" />
+                            </RadzenSeriesConfiguration>
+                        </RadzenPieSeries>
+                        <RadzenLegend Position="LegendPosition.Bottom" />
+                    </RadzenChart>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenCard class="rz-shadow-3">
+        <RadzenStack Gap="1rem">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                <RadzenIcon Icon="table_chart" IconStyle="IconStyle.Primary" />
+                <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">Revenue Transactions</RadzenText>
+                <RadzenBadge BadgeStyle="BadgeStyle.Primary" Text="@($"{filteredBookings.Count} records")" />
+            </RadzenStack>
+            <RadzenDataGrid @ref="grid" Data="@filteredBookings" TItem="Booking" AllowSorting="true" AllowFiltering="true" AllowPaging="true" PageSize="8">
+                <Columns>
+                    <RadzenDataGridColumn Title="Booking #" Property="BookingNumber" Width="140px" Frozen="true">
+                        <Template Context="b">
+                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                                <RadzenIcon Icon="tag" IconStyle="IconStyle.Secondary" Style="font-size: 1rem;" />
+                                <RadzenText TextStyle="TextStyle.Body2" Style="margin: 0; font-weight: 600;">@b.BookingNumber</RadzenText>
+                            </RadzenStack>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn Title="Guest" Property="GuestName" Width="180px" />
+                    <RadzenDataGridColumn Title="Type" Width="120px">
+                        <Template Context="b">
+                            <RadzenBadge Text="@b.BookingType.ToString()" BadgeStyle="BadgeStyle.Info" />
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn Title="Status" Width="110px">
+                        <Template Context="b">
+                            <RadzenBadge Text="@b.Status.ToString()" BadgeStyle="@GetStatusBadge(b.Status)" />
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn Title="Date" Width="110px">
+                        <Template Context="b">
+                            <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0;">@b.CreatedAt.ToString("MMM dd")</RadzenText>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn Title="Total (KES)" Width="120px">
+                        <Template Context="b">
+                            <RadzenText TextStyle="TextStyle.Body2" Style="margin: 0; font-weight: 600;">@string.Format("{0:N0}", b.TotalAmount)</RadzenText>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn Title="Paid (KES)" Width="120px">
+                        <Template Context="b">
+                            <RadzenText TextStyle="TextStyle.Body2" Style="margin: 0;">@string.Format("{0:N0}", b.PaidAmount)</RadzenText>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn Title="Balance (KES)" Width="120px">
+                        <Template Context="b">
+                            <RadzenText TextStyle="TextStyle.Body2" Style="@GetBalanceStyle(b.BalanceAmount)">
+                                @string.Format("{0:N0}", b.BalanceAmount)
+                            </RadzenText>
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenStack>
+    </RadzenCard>
+</RadzenStack>
+
+@code {
+    private RadzenDataGrid<Booking> grid;
+    private List<Booking> allBookings = new();
+    private List<Booking> filteredBookings = new();
+
+    private decimal totalRevenueYtd;
+    private decimal accommodationRevenue;
+    private decimal packageRevenue;
+    private decimal activityRevenue;
+
+    private List<MonthlyRevenueItem> monthlyRevenue = new();
+    private List<RevenueBreakdownItem> revenueBreakdown = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        allBookings = await BookingService.GetBookingsAsync();
+        CalculateRevenue();
+        BuildChartData();
+    }
+
+    private void CalculateRevenue()
+    {
+        var now = DateTime.Today;
+
+        totalRevenueYtd = allBookings
+            .Where(b => b.CreatedAt.Year == now.Year && b.Status != BookingStatus.Cancelled)
+            .Sum(b => b.TotalAmount);
+
+        accommodationRevenue = allBookings
+            .Where(b => b.CreatedAt.Month == now.Month && b.CreatedAt.Year == now.Year
+                && (b.BookingType == BookingType.Room || b.BookingType == BookingType.Chalet
+                    || b.BookingType == BookingType.Tent || b.BookingType == BookingType.Campsite))
+            .Sum(b => b.TotalAmount);
+
+        packageRevenue = allBookings
+            .Where(b => b.CreatedAt.Month == now.Month && b.CreatedAt.Year == now.Year
+                && b.BookingType == BookingType.SafariPackage)
+            .Sum(b => b.TotalAmount);
+
+        activityRevenue = allBookings
+            .Where(b => b.CreatedAt.Month == now.Month && b.CreatedAt.Year == now.Year
+                && (b.BookingType == BookingType.GameDrive || b.BookingType == BookingType.BoatCruise
+                    || b.BookingType == BookingType.BirdWatching))
+            .Sum(b => b.TotalAmount);
+
+        filteredBookings = allBookings
+            .Where(b => b.Status != BookingStatus.Cancelled)
+            .OrderByDescending(b => b.CreatedAt)
+            .ToList();
+    }
+
+    private void BuildChartData()
+    {
+        var now = DateTime.Today;
+        monthlyRevenue = Enumerable.Range(1, now.Month).Select(m => new MonthlyRevenueItem
+        {
+            Month = new DateTime(now.Year, m, 1).ToString("MMM"),
+            Revenue = allBookings
+                .Where(b => b.CreatedAt.Month == m && b.CreatedAt.Year == now.Year && b.Status != BookingStatus.Cancelled)
+                .Sum(b => b.TotalAmount)
+        }).ToList();
+
+        revenueBreakdown = new List<RevenueBreakdownItem>
+        {
+            new() { Category = "Accommodation", Amount = accommodationRevenue },
+            new() { Category = "Packages", Amount = packageRevenue },
+            new() { Category = "Activities", Amount = activityRevenue },
+            new() { Category = "Park Entry", Amount = allBookings.Where(b => b.BookingType == BookingType.ParkEntry).Sum(b => b.TotalAmount) },
+            new() { Category = "Other", Amount = allBookings.Where(b => b.BookingType is BookingType.FishingPermit or BookingType.HikingPermit or BookingType.PhotographyPermit).Sum(b => b.TotalAmount) }
+        };
+    }
+
+    private string GetBalanceStyle(decimal balance) =>
+        $"margin: 0; font-weight: 600; color: {(balance > 0 ? "#e53935" : "#43a047")};";
+
+    private BadgeStyle GetStatusBadge(BookingStatus status) => status switch
+    {
+        BookingStatus.Confirmed => BadgeStyle.Success,
+        BookingStatus.CheckedIn => BadgeStyle.Info,
+        BookingStatus.CheckedOut => BadgeStyle.Secondary,
+        BookingStatus.Pending => BadgeStyle.Warning,
+        BookingStatus.Cancelled => BadgeStyle.Danger,
+        BookingStatus.NoShow => BadgeStyle.Dark,
+        _ => BadgeStyle.Light
+    };
+
+    private class MonthlyRevenueItem
+    {
+        public string Month { get; set; } = "";
+        public decimal Revenue { get; set; }
+    }
+
+    private class RevenueBreakdownItem
+    {
+        public string Category { get; set; } = "";
+        public decimal Amount { get; set; }
+    }
+}

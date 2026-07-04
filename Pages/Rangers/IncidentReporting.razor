@@ -1,0 +1,178 @@
+@page "/rangers/incidents"
+@using BookingBackendWebApp.Services.Rangers
+@inject IRangerService RangerService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<PageTitle>Ranger Incident Reporting</PageTitle>
+
+<RadzenStack Gap="1.5rem">
+    <RadzenRow>
+        <RadzenColumn Size="12">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween">
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.75rem">
+                    <RadzenIcon Icon="description" IconStyle="IconStyle.Primary" Style="font-size: 1.75rem;" />
+                    <RadzenStack Gap="0.125rem">
+                        <RadzenText TextStyle="TextStyle.H5" TagName="TagName.H1" Style="margin: 0;">Incident Reporting</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0; color: var(--rz-text-secondary-color);">Report and manage ranger incidents</RadzenText>
+                    </RadzenStack>
+                </RadzenStack>
+            </RadzenStack>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenRow Gap="1rem">
+        <RadzenColumn Size="12" SizeLG="5">
+            <RadzenCard class="rz-shadow-3" Style="border-top: 4px solid #F44336;">
+                <RadzenTemplateForm TItem="RangerIncident" Model="@newIncident" Submit="@SaveIncident">
+                    <RadzenStack Gap="1rem">
+                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                            <RadzenIcon Icon="add_circle" IconStyle="IconStyle.Danger" />
+                            <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">Report New Incident</RadzenText>
+                        </RadzenStack>
+                        <RadzenDropDown TValue="int" Data="@rangers" TextProperty="Name" ValueProperty="Id" @bind-Value="@newIncident.RangerId" Placeholder="Select Ranger" Style="width: 100%;" />
+                        <RadzenTextBox @bind-Value="@newIncident.Type" Placeholder="Incident Type (e.g. Snares Found, Vehicle Breakdown)" Style="width: 100%;" />
+                        <RadzenTextBox @bind-Value="@newIncident.Description" Placeholder="Detailed description..." Style="width: 100%;" TextMode="InputType.TextArea" Rows="3" />
+                        <RadzenTextBox @bind-Value="@newIncident.Location" Placeholder="Location" Style="width: 100%;" />
+                        <RadzenRow Gap="1rem">
+                            <RadzenColumn Size="6">
+                                <RadzenTextBox @bind-Value="@gpsLat" Placeholder="GPS Latitude" Style="width: 100%;" />
+                            </RadzenColumn>
+                            <RadzenColumn Size="6">
+                                <RadzenTextBox @bind-Value="@gpsLng" Placeholder="GPS Longitude" Style="width: 100%;" />
+                            </RadzenColumn>
+                        </RadzenRow>
+                        <RadzenRow Gap="1rem">
+                            <RadzenColumn Size="6">
+                                <RadzenDropDown Data="@severityOptions" @bind-Value="@newIncident.Severity" Placeholder="Severity" Style="width: 100%;" />
+                            </RadzenColumn>
+                            <RadzenColumn Size="6">
+                                <RadzenDatePicker @bind-Value="@newIncident.Date" Placeholder="Date" Style="width: 100%;" />
+                            </RadzenColumn>
+                        </RadzenRow>
+                        <RadzenButton ButtonType="ButtonType.Submit" ButtonStyle="ButtonStyle.Danger" Text="Submit Incident Report" Style="width: 100%;" />
+                    </RadzenStack>
+                </RadzenTemplateForm>
+            </RadzenCard>
+        </RadzenColumn>
+
+        <RadzenColumn Size="12" SizeLG="7">
+            <RadzenCard class="rz-shadow-3">
+                <RadzenStack Gap="1rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                        <RadzenIcon Icon="view_list" IconStyle="IconStyle.Primary" />
+                        <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">Recent Incident Reports</RadzenText>
+                        <RadzenBadge BadgeStyle="BadgeStyle.Primary" Text="@($"{rangerIncidents.Count} reports")" />
+                    </RadzenStack>
+                    <RadzenDataGrid Data="@rangerIncidents" TItem="RangerIncident" AllowSorting="true" AllowPaging="true" PageSize="5">
+                        <Columns>
+                            <RadzenDataGridColumn Title="Ranger" Width="150px">
+                                <Template Context="ri">
+                                    <RadzenText>@GetRangerName(ri.RangerId)</RadzenText>
+                                </Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn Title="Type" Property="Type" Width="140px" />
+                            <RadzenDataGridColumn Title="Description" Width="200px">
+                                <Template Context="ri">
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; display: block;">
+                                        @ri.Description
+                                    </RadzenText>
+                                </Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn Title="Location" Property="Location" Width="130px" />
+                            <RadzenDataGridColumn Title="Severity" Width="90px">
+                                <Template Context="ri">
+                                    <RadzenBadge Text="@ri.Severity" BadgeStyle="@GetRangerSeverityBadge(ri.Severity)" />
+                                </Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn Title="Date" Width="120px">
+                                <Template Context="ri">
+                                    <RadzenText>@ri.Date.ToString("MMM dd, yyyy")</RadzenText>
+                                </Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn Title="Status" Width="100px">
+                                <Template Context="ri">
+                                    <RadzenBadge Text="@ri.Status" BadgeStyle="@GetRangerIncidentStatusBadge(ri.Status)" />
+                                </Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn Title="Actions" Width="100px">
+                                <Template Context="ri">
+                                    @if (ri.Status != "Resolved")
+                                    {
+                                        <RadzenButton ButtonStyle="ButtonStyle.Success" Size="ButtonSize.ExtraSmall" Icon="check" Click="@(() => ResolveIncident(ri.Id))" Text="Resolve" />
+                                    }
+                                </Template>
+                            </RadzenDataGridColumn>
+                        </Columns>
+                    </RadzenDataGrid>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+    </RadzenRow>
+</RadzenStack>
+
+@code {
+    private List<Ranger> rangers = new();
+    private List<RangerIncident> rangerIncidents = new();
+    private RangerIncident newIncident = new() { Date = DateTime.Today, Status = "Open", Severity = "Medium" };
+    private string gpsLat = "";
+    private string gpsLng = "";
+    private string[] severityOptions = { "Low", "Medium", "High", "Critical" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        rangers = await RangerService.GetRangersAsync();
+        rangerIncidents = await RangerService.GetRangerIncidentsAsync();
+    }
+
+    private async Task SaveIncident()
+    {
+        if (double.TryParse(gpsLat, out var lat)) newIncident.GpsLatitude = lat;
+        if (double.TryParse(gpsLng, out var lng)) newIncident.GpsLongitude = lng;
+        await RangerService.ReportRangerIncidentAsync(newIncident);
+        NotificationService.Notify(NotificationSeverity.Success, "Incident reported successfully");
+        newIncident = new() { Date = DateTime.Today, Status = "Open", Severity = "Medium" };
+        gpsLat = "";
+        gpsLng = "";
+        await LoadData();
+    }
+
+    private async Task ResolveIncident(int id)
+    {
+        var confirmed = await DialogService.Confirm("Mark this incident as resolved?", "Confirm Resolution");
+        if (confirmed == true)
+        {
+            await RangerService.ResolveRangerIncidentAsync(id);
+            NotificationService.Notify(NotificationSeverity.Success, "Incident resolved");
+            await LoadData();
+        }
+    }
+
+    private string GetRangerName(int rangerId)
+    {
+        var r = rangers.FirstOrDefault(rr => rr.Id == rangerId);
+        return r?.Name ?? $"Ranger #{rangerId}";
+    }
+
+    private BadgeStyle GetRangerSeverityBadge(string severity) => severity switch
+    {
+        "Critical" => BadgeStyle.Danger,
+        "High" => BadgeStyle.Warning,
+        "Medium" => BadgeStyle.Info,
+        "Low" => BadgeStyle.Secondary,
+        _ => BadgeStyle.Light
+    };
+
+    private BadgeStyle GetRangerIncidentStatusBadge(string status) => status switch
+    {
+        "Open" => BadgeStyle.Danger,
+        "Investigating" => BadgeStyle.Warning,
+        "Resolved" => BadgeStyle.Success,
+        _ => BadgeStyle.Light
+    };
+}

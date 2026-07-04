@@ -1,0 +1,114 @@
+@page "/conservation/tracking"
+@using BookingBackendWebApp.Services.Conservation
+@inject IConservationService ConservationService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<PageTitle>Animal Tracking</PageTitle>
+
+<RadzenStack Gap="1.5rem">
+    <RadzenRow>
+        <RadzenColumn Size="12">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween">
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.75rem">
+                    <RadzenIcon Icon="track_changes" IconStyle="IconStyle.Primary" Style="font-size: 1.75rem;" />
+                    <RadzenStack Gap="0.125rem">
+                        <RadzenText TextStyle="TextStyle.H5" TagName="TagName.H1" Style="margin: 0;">Animal Tracking</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0; color: var(--rz-text-secondary-color);">Real-time GPS tracking of collared animals</RadzenText>
+                    </RadzenStack>
+                </RadzenStack>
+                <RadzenButton Icon="refresh" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="@LoadData" Text="Refresh" />
+            </RadzenStack>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenCard class="rz-shadow-3">
+        <RadzenStack Gap="1rem">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                <RadzenIcon Icon="map" IconStyle="IconStyle.Primary" />
+                <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">Tracking Map</RadzenText>
+                <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="Leaflet.js" Style="font-size: 0.7rem;" />
+            </RadzenStack>
+            <div id="tracking-map" style="height: 400px; background: #e8f5e9; border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 1px dashed #00897B;">
+                <RadzenStack AlignItems="AlignItems.Center" Gap="0.5rem">
+                    <RadzenIcon Icon="map" Style="font-size: 3rem; color: #00897B; opacity: 0.5;" />
+                    <RadzenText TextStyle="TextStyle.Body1" Style="color: #00897B;">Map loading... (Leaflet.js integration)</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color);">@trackingData.Count tracked animals displayed</RadzenText>
+                </RadzenStack>
+            </div>
+        </RadzenStack>
+    </RadzenCard>
+
+    <RadzenCard class="rz-shadow-3">
+        <RadzenStack Gap="1rem">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                <RadzenIcon Icon="format_list_bulleted" IconStyle="IconStyle.Primary" />
+                <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">Tracked Animals</RadzenText>
+                <RadzenBadge BadgeStyle="BadgeStyle.Primary" Text="@($"{trackingData.Count} animals")" />
+            </RadzenStack>
+            <RadzenDataGrid Data="@trackingData" TItem="BookingBackendWebApp.Models.AnimalTracking" AllowSorting="true" AllowPaging="true" PageSize="8">
+                <Columns>
+                    <RadzenDataGridColumn Title="Animal Name" Property="AnimalName" Width="160px" />
+                    <RadzenDataGridColumn Title="Species" Width="160px">
+                        <Template Context="t">
+                            <RadzenText>@GetSpeciesName(t.SpeciesId)</RadzenText>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn Title="Last Seen" Width="160px">
+                        <Template Context="t">
+                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.25rem">
+                                <RadzenIcon Icon="schedule" Style="font-size: 0.875rem; color: var(--rz-text-secondary-color);" />
+                                <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0;">@t.LastSeen.ToString("MMM dd, HH:mm")</RadzenText>
+                            </RadzenStack>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn Title="Status" Width="120px">
+                        <Template Context="t">
+                            <RadzenBadge Text="@t.Status" BadgeStyle="@GetTrackingStatusBadge(t.Status)" />
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn Title="GPS Coordinates" Width="220px">
+                        <Template Context="t">
+                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.25rem">
+                                <RadzenIcon Icon="location_on" Style="font-size: 0.875rem; color: #F44336;" />
+                                <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0; font-family: monospace;">
+                                    @t.GpsLatitude.ToString("F4"), @t.GpsLongitude.ToString("F4")
+                                </RadzenText>
+                            </RadzenStack>
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenStack>
+    </RadzenCard>
+</RadzenStack>
+
+@code {
+    private List<BookingBackendWebApp.Models.AnimalTracking> trackingData = new();
+    private List<Species> species = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        species = await ConservationService.GetSpeciesAsync();
+        trackingData = await ConservationService.GetTrackingDataAsync();
+    }
+
+    private string GetSpeciesName(int speciesId)
+    {
+        var s = species.FirstOrDefault(sp => sp.Id == speciesId);
+        return s?.Name ?? $"Species #{speciesId}";
+    }
+
+    private BadgeStyle GetTrackingStatusBadge(string status) => status switch
+    {
+        "Active" => BadgeStyle.Success,
+        "Inactive" => BadgeStyle.Secondary,
+        "Alert" => BadgeStyle.Danger,
+        _ => BadgeStyle.Light
+    };
+}

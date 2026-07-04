@@ -1,0 +1,104 @@
+{
+  "name": "Tourism Management Portal",
+  "short_name": "Tourism Portal",
+  "description": "Comprehensive tourism and hospitality management system for booking operations, property management, and guest services",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1B2A4A",
+  "orientation": "any",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": [
+    "travel",
+    "tourism",
+    "hospitality",
+    "productivity"
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "View executive dashboard with real-time KPIs",
+      "url": "/dashboard",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Bookings",
+      "short_name": "Bookings",
+      "description": "Manage reservations and booking operations",
+      "url": "/bookings",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Properties",
+      "short_name": "Properties",
+      "description": "Manage properties and accommodation listings",
+      "url": "/properties",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Guests",
+      "short_name": "Guests",
+      "description": "Access guest profiles and services",
+      "url": "/guests",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "document",
+          "accept": ["application/pdf", "image/*"]
+        }
+      ]
+    }
+  },
+  "prefer_related_applications": false,
+  "related_applications": [],
+  "protocol_handlers": []
+}

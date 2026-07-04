@@ -1,0 +1,139 @@
+@page "/revenue-management/forecasting"
+@namespace BookingBackendWebApp.Pages.RevenueManagement
+@using BookingBackendWebApp.Services.RevenueManagement
+@inject IRevenueManagementService RevenueService
+@inject NotificationService Notification
+
+<RadzenStack Gap="16px">
+    <RadzenRow>
+        <RadzenColumn Size="6">
+            <RadzenText TextStyle="TextStyle.H5">Forecasting</RadzenText>
+        </RadzenColumn>
+        <RadzenColumn Size="6" Style="text-align:right">
+            <RadzenDropDown @bind-Value="_selectedPeriod" Data="@_periods" Change="@OnPeriodChanged" Placeholder="Select period" />
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenRow>
+        <RadzenColumn Size="4">
+            <RadzenCard>
+                <RadzenStack Gap="8px">
+                    <RadzenText TextStyle="TextStyle.Subtitle2">Forecast Revenue</RadzenText>
+                    <RadzenText TextStyle="TextStyle.H4">@_totalRevenue.ToString("N0")</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body2">KES</RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="4">
+            <RadzenCard>
+                <RadzenStack Gap="8px">
+                    <RadzenText TextStyle="TextStyle.Subtitle2">Occupancy</RadzenText>
+                    <RadzenText TextStyle="TextStyle.H4">@($"{_avgOccupancy:P1}")</RadzenText>
+                    <RadzenProgressBar Value="@((int)(_avgOccupancy * 100))" Max="100" Style="height:8px" />
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="4">
+            <RadzenCard>
+                <RadzenStack Gap="8px">
+                    <RadzenText TextStyle="TextStyle.Subtitle2">Visitor Count</RadzenText>
+                    <RadzenText TextStyle="TextStyle.H4">@_totalVisitors.ToString("N0")</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body2">Expected visitors</RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenRow>
+        <RadzenColumn Size="6">
+            <RadzenCard>
+                <RadzenStack Gap="12px">
+                    <RadzenText TextStyle="TextStyle.H6">Revenue Forecast</RadzenText>
+                    <RadzenChart>
+                        <RadzenBarSeries Data="@_forecasts" CategoryProperty="Period" ValueProperty="Revenue" Title="Revenue (KES)" />
+                        <RadzenLegend Visible="true" />
+                    </RadzenChart>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="6">
+            <RadzenCard>
+                <RadzenStack Gap="12px">
+                    <RadzenText TextStyle="TextStyle.H6">Occupancy Forecast</RadzenText>
+                    <RadzenChart>
+                        <RadzenLineSeries Data="@_forecasts" CategoryProperty="Period" ValueProperty="Occupancy" Title="Occupancy (%)" Smooth="true" />
+                        <RadzenLegend Visible="true" />
+                    </RadzenChart>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenCard>
+        <RadzenStack Gap="12px">
+            <RadzenText TextStyle="TextStyle.H6">Forecast Details</RadzenText>
+            <RadzenDataGrid Data="@_forecasts" TItem="Forecast" AllowFiltering="true" AllowSorting="true">
+                <Columns>
+                    <RadzenDataGridColumn TItem="Forecast" Property="Period" Title="Period" />
+                    <RadzenDataGridColumn TItem="Forecast" Property="Revenue" Title="Revenue (KES)">
+                        <Template>
+                            @{
+                                var f = context as Forecast;
+                                if (f != null) { <span>@f.Revenue.ToString("N0")</span> }
+                            }
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="Forecast" Property="Occupancy" Title="Occupancy">
+                        <Template>
+                            @{
+                                var f = context as Forecast;
+                                if (f != null) { <span>@($"{f.Occupancy:P1}")</span> }
+                            }
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="Forecast" Property="VisitorCount" Title="Visitors" />
+                    <RadzenDataGridColumn TItem="Forecast" Property="Confidence" Title="Confidence">
+                        <Template>
+                            @{
+                                var f = context as Forecast;
+                                if (f != null) { <span>@($"{f.Confidence:P1}")</span> }
+                            }
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenStack>
+    </RadzenCard>
+</RadzenStack>
+
+@code {
+    private List<Forecast> _forecasts = new();
+    private string _selectedPeriod = "All";
+    private List<string> _periods = new() { "All", "Monthly", "Quarterly", "Yearly" };
+    private decimal _totalRevenue;
+    private double _avgOccupancy;
+    private int _totalVisitors;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _forecasts = await RevenueService.GetForecastsAsync();
+        ComputeKpis();
+    }
+
+    private void ComputeKpis()
+    {
+        _totalRevenue = _forecasts.Sum(f => f.Revenue);
+        _avgOccupancy = _forecasts.Count > 0 ? _forecasts.Average(f => f.Occupancy) : 0;
+        _totalVisitors = _forecasts.Sum(f => f.VisitorCount);
+    }
+
+    private async Task OnPeriodChanged()
+    {
+        await LoadDataAsync();
+    }
+}

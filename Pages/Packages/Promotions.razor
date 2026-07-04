@@ -1,0 +1,290 @@
+@page "/packages/promotions"
+@namespace BookingBackendWebApp.Pages.Packages
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<RadzenCard>
+    <h3>Promotions & Discounts</h3>
+</RadzenCard>
+
+<RadzenCard Style="margin-top:16px;">
+    <RadzenTabs RenderMode="TabRenderMode.Client">
+        <Tabs>
+            <RadzenTab Text="Discount Rules" Icon="discount">
+                <div>
+                    <RadzenButton Text="Add Discount Rule" ButtonStyle="ButtonStyle.Primary" Icon="add" Click="@OpenAddDiscountDialog" Style="margin-bottom:12px;" />
+                    <RadzenDataGrid TItem="DiscountRule" Data="@discountRules" AllowPaging="true" PageSize="5" AllowSorting="true">
+                        <Columns>
+                            <RadzenDataGridColumn TItem="DiscountRule" Property="Name" Title="Rule Name" Sortable="true" />
+                            <RadzenDataGridColumn TItem="DiscountRule" Property="Type" Title="Type" Sortable="true" Width="120px" />
+                            <RadzenDataGridColumn TItem="DiscountRule" Property="Value" Title="Value" Sortable="true" Width="100px">
+                                <Template Context="d">@d.Value@(d.Type == "Percentage" ? "%" : " KES")</Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn TItem="DiscountRule" Title="Min Nights" Sortable="true" SortProperty="MinNights" Width="100px">
+                                <Template Context="d">@(d.MinNights > 0 ? d.MinNights.ToString() : "Any")</Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn TItem="DiscountRule" Title="Status" Width="100px">
+                                <Template Context="d">
+                                    <RadzenBadge Text="@(d.IsActive ? "Active" : "Inactive")" BadgeStyle="@(d.IsActive ? BadgeStyle.Success : BadgeStyle.Light)" />
+                                </Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn TItem="DiscountRule" Title="Actions" Width="120px">
+                                <Template Context="d">
+                                    <RadzenButton ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small" Icon="delete" Tooltip="Delete" Click="@(() => DeleteDiscountRule(d))" />
+                                </Template>
+                            </RadzenDataGridColumn>
+                        </Columns>
+                    </RadzenDataGrid>
+                </div>
+            </RadzenTab>
+            <RadzenTab Text="Promo Codes" Icon="code">
+                <div>
+                    <RadzenButton Text="Generate Promo Code" ButtonStyle="ButtonStyle.Primary" Icon="add" Click="@OpenAddPromoDialog" Style="margin-bottom:12px;" />
+                    <RadzenDataGrid TItem="PromoCode" Data="@promoCodes" AllowPaging="true" PageSize="5" AllowSorting="true">
+                        <Columns>
+                            <RadzenDataGridColumn TItem="PromoCode" Property="Code" Title="Code" Sortable="true" Width="150px">
+                                <Template Context="p"><RadzenBadge Text="@p.Code" BadgeStyle="BadgeStyle.Info" /></Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn TItem="PromoCode" Property="Discount" Title="Discount" Sortable="true" Width="100px">
+                                <Template Context="p">@p.Discount%</Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn TItem="PromoCode" Title="Valid Until" Sortable="true" SortProperty="ValidUntil" Width="140px">
+                                <Template Context="p">@p.ValidUntil.ToString("dd MMM yyyy")</Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn TItem="PromoCode" Title="Uses" Sortable="true" SortProperty="MaxUses" Width="80px">
+                                <Template Context="p">@p.UsedCount/@(p.MaxUses > 0 ? p.MaxUses.ToString() : "∞")</Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn TItem="PromoCode" Title="Status" Width="100px">
+                                <Template Context="p">
+                                    <RadzenBadge Text="@(p.IsActive ? "Active" : "Expired")" BadgeStyle="@(p.IsActive ? BadgeStyle.Success : BadgeStyle.Light)" />
+                                </Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn TItem="PromoCode" Title="Actions" Width="120px">
+                                <Template Context="p">
+                                    <RadzenButton ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small" Icon="delete" Tooltip="Delete" Click="@(() => DeletePromoCode(p))" />
+                                </Template>
+                            </RadzenDataGridColumn>
+                        </Columns>
+                    </RadzenDataGrid>
+                </div>
+            </RadzenTab>
+            <RadzenTab Text="Seasonal Offers" Icon="calendar_month">
+                <div>
+                    <RadzenButton Text="Add Seasonal Offer" ButtonStyle="ButtonStyle.Primary" Icon="add" Click="@OpenAddSeasonalDialog" Style="margin-bottom:12px;" />
+                    <RadzenDataGrid TItem="SeasonalOffer" Data="@seasonalOffers" AllowPaging="true" PageSize="5" AllowSorting="true">
+                        <Columns>
+                            <RadzenDataGridColumn TItem="SeasonalOffer" Property="Name" Title="Offer Name" Sortable="true" />
+                            <RadzenDataGridColumn TItem="SeasonalOffer" Title="Period" Sortable="true" Width="200px">
+                                <Template Context="s">@s.StartDate.ToString("dd MMM") - @s.EndDate.ToString("dd MMM yyyy")</Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn TItem="SeasonalOffer" Title="Adjustment" Sortable="true" Width="120px">
+                                <Template Context="s">
+                                    <RadzenBadge Text="@(s.AdjustmentType == "Percentage" ? $"{s.Value}%" : $"{s.Value:N0} KES")" BadgeStyle="@(s.Value < 0 ? BadgeStyle.Success : BadgeStyle.Warning)" />
+                                </Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn TItem="SeasonalOffer" Title="Active" Width="80px">
+                                <Template Context="s">
+                                    <RadzenBadge Text="@(s.IsActive ? "Yes" : "No")" BadgeStyle="@(s.IsActive ? BadgeStyle.Success : BadgeStyle.Light)" />
+                                </Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn TItem="SeasonalOffer" Title="Actions" Width="120px">
+                                <Template Context="s">
+                                    <RadzenButton ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small" Icon="delete" Tooltip="Delete" Click="@(() => DeleteSeasonalOffer(s))" />
+                                </Template>
+                            </RadzenDataGridColumn>
+                        </Columns>
+                    </RadzenDataGrid>
+                </div>
+            </RadzenTab>
+        </Tabs>
+    </RadzenTabs>
+</RadzenCard>
+
+@if (showDiscountDialog)
+{
+    <RadzenDialog>
+        <RadzenCard Style="min-width:400px;">
+            <RadzenContentContainer>
+                <h4>Add Discount Rule</h4>
+                <RadzenLabel Text="Rule Name" Component="discName" />
+                <RadzenTextBox @bind-Value="@editDiscount.Name" Id="discName" />
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px;">
+                    <div>
+                        <RadzenLabel Text="Type" Component="discType" />
+                        <RadzenDropDown @bind-Value="@editDiscount.Type" Data="@(new[] { "Percentage", "Fixed" })" Id="discType" />
+                    </div>
+                    <div>
+                        <RadzenLabel Text="Value" Component="discVal" />
+                        <RadzenNumeric @bind-Value="@editDiscount.Value" Id="discVal" Min="0" Step="1" />
+                    </div>
+                </div>
+                <RadzenLabel Text="Min Nights" Component="discNights" />
+                <RadzenNumeric @bind-Value="@editDiscount.MinNights" Id="discNights" Min="0" Step="1" />
+                <div style="margin-top:16px;display:flex;gap:8px;">
+                    <RadzenButton Text="Add" ButtonStyle="ButtonStyle.Primary" Click="@SaveDiscountRule" />
+                    <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Secondary" Click="@(() => showDiscountDialog = false)" />
+                </div>
+            </RadzenContentContainer>
+        </RadzenCard>
+    </RadzenDialog>
+}
+
+@if (showPromoDialog)
+{
+    <RadzenDialog>
+        <RadzenCard Style="min-width:400px;">
+            <RadzenContentContainer>
+                <h4>Generate Promo Code</h4>
+                <RadzenLabel Text="Discount %" Component="promoDisc" />
+                <RadzenNumeric @bind-Value="@editPromo.Discount" Id="promoDisc" Min="1" Max="100" Step="1" />
+                <RadzenLabel Text="Valid Until" Component="promoValid" />
+                <RadzenDatePicker @bind-Value="@editPromo.ValidUntil" Id="promoValid" />
+                <RadzenLabel Text="Max Uses (0 = unlimited)" Component="promoUses" />
+                <RadzenNumeric @bind-Value="@editPromo.MaxUses" Id="promoUses" Min="0" Step="1" />
+                <div style="margin-top:16px;display:flex;gap:8px;">
+                    <RadzenButton Text="Generate" ButtonStyle="ButtonStyle.Primary" Click="@SavePromoCode" />
+                    <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Secondary" Click="@(() => showPromoDialog = false)" />
+                </div>
+            </RadzenContentContainer>
+        </RadzenCard>
+    </RadzenDialog>
+}
+
+@if (showSeasonalDialog)
+{
+    <RadzenDialog>
+        <RadzenCard Style="min-width:400px;">
+            <RadzenContentContainer>
+                <h4>Add Seasonal Offer</h4>
+                <RadzenLabel Text="Offer Name" Component="seasName" />
+                <RadzenTextBox @bind-Value="@editSeasonal.Name" Id="seasName" />
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px;">
+                    <div>
+                        <RadzenLabel Text="Start Date" Component="seasStart" />
+                        <RadzenDatePicker @bind-Value="@editSeasonal.StartDate" Id="seasStart" />
+                    </div>
+                    <div>
+                        <RadzenLabel Text="End Date" Component="seasEnd" />
+                        <RadzenDatePicker @bind-Value="@editSeasonal.EndDate" Id="seasEnd" />
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div>
+                        <RadzenLabel Text="Adjustment Type" Component="seasAdj" />
+                        <RadzenDropDown @bind-Value="@editSeasonal.AdjustmentType" Data="@(new[] { "Percentage", "Fixed" })" Id="seasAdj" />
+                    </div>
+                    <div>
+                        <RadzenLabel Text="Value" Component="seasVal" />
+                        <RadzenNumeric @bind-Value="@editSeasonal.Value" Id="seasVal" Step="0.1" />
+                    </div>
+                </div>
+                <div style="margin-top:16px;display:flex;gap:8px;">
+                    <RadzenButton Text="Add" ButtonStyle="ButtonStyle.Primary" Click="@SaveSeasonalOffer" />
+                    <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Secondary" Click="@(() => showSeasonalDialog = false)" />
+                </div>
+            </RadzenContentContainer>
+        </RadzenCard>
+    </RadzenDialog>
+}
+
+@code {
+    private class DiscountRule
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Type { get; set; } = "Percentage";
+        public decimal Value { get; set; }
+        public int MinNights { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+
+    private class PromoCode
+    {
+        public int Id { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public int Discount { get; set; }
+        public DateTime ValidUntil { get; set; }
+        public int MaxUses { get; set; }
+        public int UsedCount { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+
+    private class SeasonalOffer
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public DateTime StartDate { get; set; }
+        public DateTime EndDate { get; set; }
+        public string AdjustmentType { get; set; } = "Percentage";
+        public decimal Value { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+
+    private List<DiscountRule> discountRules = new();
+    private List<PromoCode> promoCodes = new();
+    private List<SeasonalOffer> seasonalOffers = new();
+
+    private bool showDiscountDialog;
+    private bool showPromoDialog;
+    private bool showSeasonalDialog;
+
+    private DiscountRule editDiscount = new();
+    private PromoCode editPromo = new();
+    private SeasonalOffer editSeasonal = new();
+
+    private int _nextDiscountId = 1;
+    private int _nextPromoId = 1;
+    private int _nextSeasonalId = 1;
+
+    protected override void OnInitialized()
+    {
+        discountRules = new()
+        {
+            new() { Id = _nextDiscountId++, Name = "Long Stay Discount", Type = "Percentage", Value = 20, MinNights = 7 },
+            new() { Id = _nextDiscountId++, Name = "Returning Guest", Type = "Percentage", Value = 10, MinNights = 0 },
+        };
+
+        promoCodes = new()
+        {
+            new() { Id = _nextPromoId++, Code = "SAFARI25", Discount = 25, ValidUntil = new DateTime(2026, 12, 31), MaxUses = 100, UsedCount = 12 },
+            new() { Id = _nextPromoId++, Code = "WELCOME10", Discount = 10, ValidUntil = new DateTime(2026, 6, 30), MaxUses = 0, UsedCount = 45 },
+        };
+
+        seasonalOffers = new()
+        {
+            new() { Id = _nextSeasonalId++, Name = "Summer Special", StartDate = new DateTime(2026, 6, 1), EndDate = new DateTime(2026, 8, 31), AdjustmentType = "Percentage", Value = -15 },
+            new() { Id = _nextSeasonalId++, Name = "Christmas Premium", StartDate = new DateTime(2026, 12, 20), EndDate = new DateTime(2027, 1, 5), AdjustmentType = "Percentage", Value = 20 },
+        };
+    }
+
+    private void OpenAddDiscountDialog() { editDiscount = new DiscountRule(); showDiscountDialog = true; }
+    private void SaveDiscountRule() { editDiscount.Id = _nextDiscountId++; discountRules.Add(editDiscount); showDiscountDialog = false; NotificationService.Notify(NotificationSeverity.Success, "Added", "Discount rule created."); }
+    private async Task DeleteDiscountRule(DiscountRule d) { if (await ConfirmDelete(d.Name)) { discountRules.Remove(d); NotificationService.Notify(NotificationSeverity.Success, "Deleted", "Discount rule removed."); } }
+
+    private void OpenAddPromoDialog() { editPromo = new PromoCode { ValidUntil = DateTime.Now.AddMonths(6) }; showPromoDialog = true; }
+    private void SavePromoCode()
+    {
+        editPromo.Id = _nextPromoId++;
+        editPromo.Code = GeneratePromoCode();
+        promoCodes.Add(editPromo);
+        showPromoDialog = false;
+        NotificationService.Notify(NotificationSeverity.Success, "Generated", $"Promo code \"{editPromo.Code}\" created.");
+    }
+    private async Task DeletePromoCode(PromoCode p) { if (await ConfirmDelete(p.Code)) { promoCodes.Remove(p); NotificationService.Notify(NotificationSeverity.Success, "Deleted", "Promo code removed."); } }
+
+    private void OpenAddSeasonalDialog() { editSeasonal = new SeasonalOffer { StartDate = DateTime.Now, EndDate = DateTime.Now.AddMonths(1) }; showSeasonalDialog = true; }
+    private void SaveSeasonalOffer() { editSeasonal.Id = _nextSeasonalId++; seasonalOffers.Add(editSeasonal); showSeasonalDialog = false; NotificationService.Notify(NotificationSeverity.Success, "Added", "Seasonal offer created."); }
+    private async Task DeleteSeasonalOffer(SeasonalOffer s) { if (await ConfirmDelete(s.Name)) { seasonalOffers.Remove(s); NotificationService.Notify(NotificationSeverity.Success, "Deleted", "Seasonal offer removed."); } }
+
+    private string GeneratePromoCode()
+    {
+        var chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        var random = new Random();
+        return new string(Enumerable.Range(0, 8).Select(_ => chars[random.Next(chars.Length)]).ToArray());
+    }
+
+    private async Task<bool> ConfirmDelete(string name)
+    {
+        return await DialogService.Confirm($"Delete \"{name}\"?", "Confirm", new ConfirmOptions { OkButtonText = "Delete" }) == true;
+    }
+}

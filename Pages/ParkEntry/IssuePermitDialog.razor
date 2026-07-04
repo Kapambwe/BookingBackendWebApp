@@ -1,0 +1,34 @@
+@* Dialog for issuing a new special permit *@
+@inject DialogService DialogService
+
+<RadzenStack Gap="16">
+    <RadzenText TextStyle="TextStyle.H6">Issue New Permit</RadzenText>
+    <RadzenStack Gap="12">
+        <RadzenDropDown @bind-Value="@_permitType" Data="@PermitTypes" Placeholder="Permit Type" Style="width:100%" />
+        <RadzenTextBox @bind-Value="@_holder" Placeholder="Holder Name" />
+        <RadzenDatePicker @bind-Value="@_issueDate" DateFormat="yyyy-MM-dd" Style="width:100%" />
+    </RadzenStack>
+    <RadzenStack Horizontal="true" JustifyContent="JustifyContent.End" Gap="8">
+        <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Base" Click="@(() => DialogService.Close(null))" />
+        <RadzenButton Text="Issue" ButtonStyle="ButtonStyle.Primary" Click="@Submit" />
+    </RadzenStack>
+</RadzenStack>
+
+@code {
+    [Parameter] public string[] PermitTypes { get; set; } = Array.Empty<string>();
+
+    private string _permitType = string.Empty;
+    private string _holder = string.Empty;
+    private DateTime _issueDate = DateTime.Today;
+
+    private void Submit()
+    {
+        DialogService.Close(new ParkPermit
+        {
+            PermitType = _permitType,
+            Holder = _holder,
+            IssueDate = _issueDate,
+            ExpiryDate = _issueDate.AddYears(1)
+        });
+    }
+}

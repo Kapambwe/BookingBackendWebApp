@@ -1,0 +1,169 @@
+@page "/events/resources"
+@attribute [Authorize]
+@using BookingBackendWebApp.Services.Events
+@inject IEventService EventService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<RadzenCard>
+    <RadzenCardHeader>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:1.25rem;font-weight:500">Resource & Equipment Schedule</span>
+            <div style="display:flex;gap:8px">
+                <RadzenDatePicker @bind-Value="_selectedDate" DateFormat="yyyy-MM-dd" />
+            </div>
+        </div>
+    </RadzenCardHeader>
+    <RadzenCardContent>
+        <RadzenTabs RenderMode="TabRenderMode.Client" @bind-Value="_selectedResourceTab">
+            <Tabs>
+                <RadzenTab Text="Projectors">
+                    <div style="margin-top:16px">
+                        <RadzenDataGrid Data="@_projectorSchedule" TItem="ResourceSlot" AllowSorting="true">
+                            <Columns>
+                                <RadzenDataGridColumn TItem="ResourceSlot" Property="ResourceName" Title="Resource" />
+                                <RadzenDataGridColumn TItem="ResourceSlot" Property="BookedBy" Title="Booked By" />
+                                <RadzenDataGridColumn TItem="ResourceSlot" Property="StartTime" Title="From">
+                                    <Template Context="s">@s.StartTime.ToString("HH:mm")</Template>
+                                </RadzenDataGridColumn>
+                                <RadzenDataGridColumn TItem="ResourceSlot" Property="EndTime" Title="To">
+                                    <Template Context="s">@s.EndTime.ToString("HH:mm")</Template>
+                                </RadzenDataGridColumn>
+                                <RadzenDataGridColumn TItem="ResourceSlot" Title="Status">
+                                    <Template Context="s">
+                                        <RadzenBadge BadgeStyle="@(s.IsAvailable ? BadgeStyle.Success : BadgeStyle.Danger)" Text="@(s.IsAvailable ? "Available" : "In Use")" />
+                                    </Template>
+                                </RadzenDataGridColumn>
+                            </Columns>
+                        </RadzenDataGrid>
+                    </div>
+                </RadzenTab>
+                <RadzenTab Text="Screens">
+                    <div style="margin-top:16px">
+                        <RadzenDataGrid Data="@_screenSchedule" TItem="ResourceSlot" AllowSorting="true">
+                            <Columns>
+                                <RadzenDataGridColumn TItem="ResourceSlot" Property="ResourceName" Title="Resource" />
+                                <RadzenDataGridColumn TItem="ResourceSlot" Property="BookedBy" Title="Booked By" />
+                                <RadzenDataGridColumn TItem="ResourceSlot" Property="StartTime" Title="From">
+                                    <Template Context="s">@s.StartTime.ToString("HH:mm")</Template>
+                                </RadzenDataGridColumn>
+                                <RadzenDataGridColumn TItem="ResourceSlot" Property="EndTime" Title="To">
+                                    <Template Context="s">@s.EndTime.ToString("HH:mm")</Template>
+                                </RadzenDataGridColumn>
+                                <RadzenDataGridColumn TItem="ResourceSlot" Title="Status">
+                                    <Template Context="s">
+                                        <RadzenBadge BadgeStyle="@(s.IsAvailable ? BadgeStyle.Success : BadgeStyle.Danger)" Text="@(s.IsAvailable ? "Available" : "In Use")" />
+                                    </Template>
+                                </RadzenDataGridColumn>
+                            </Columns>
+                        </RadzenDataGrid>
+                    </div>
+                </RadzenTab>
+                <RadzenTab Text="PA Systems">
+                    <div style="margin-top:16px">
+                        <RadzenDataGrid Data="@_paSystemSchedule" TItem="ResourceSlot" AllowSorting="true">
+                            <Columns>
+                                <RadzenDataGridColumn TItem="ResourceSlot" Property="ResourceName" Title="Resource" />
+                                <RadzenDataGridColumn TItem="ResourceSlot" Property="BookedBy" Title="Booked By" />
+                                <RadzenDataGridColumn TItem="ResourceSlot" Property="StartTime" Title="From">
+                                    <Template Context="s">@s.StartTime.ToString("HH:mm")</Template>
+                                </RadzenDataGridColumn>
+                                <RadzenDataGridColumn TItem="ResourceSlot" Property="EndTime" Title="To">
+                                    <Template Context="s">@s.EndTime.ToString("HH:mm")</Template>
+                                </RadzenDataGridColumn>
+                                <RadzenDataGridColumn TItem="ResourceSlot" Title="Status">
+                                    <Template Context="s">
+                                        <RadzenBadge BadgeStyle="@(s.IsAvailable ? BadgeStyle.Success : BadgeStyle.Danger)" Text="@(s.IsAvailable ? "Available" : "In Use")" />
+                                    </Template>
+                                </RadzenDataGridColumn>
+                            </Columns>
+                        </RadzenDataGrid>
+                    </div>
+                </RadzenTab>
+                <RadzenTab Text="Meeting Rooms">
+                    <div style="margin-top:16px">
+                        <RadzenDataGrid Data="@_meetingRoomSchedule" TItem="ResourceSlot" AllowSorting="true">
+                            <Columns>
+                                <RadzenDataGridColumn TItem="ResourceSlot" Property="ResourceName" Title="Resource" />
+                                <RadzenDataGridColumn TItem="ResourceSlot" Property="BookedBy" Title="Booked By" />
+                                <RadzenDataGridColumn TItem="ResourceSlot" Property="StartTime" Title="From">
+                                    <Template Context="s">@s.StartTime.ToString("HH:mm")</Template>
+                                </RadzenDataGridColumn>
+                                <RadzenDataGridColumn TItem="ResourceSlot" Property="EndTime" Title="To">
+                                    <Template Context="s">@s.EndTime.ToString("HH:mm")</Template>
+                                </RadzenDataGridColumn>
+                                <RadzenDataGridColumn TItem="ResourceSlot" Title="Status">
+                                    <Template Context="s">
+                                        <RadzenBadge BadgeStyle="@(s.IsAvailable ? BadgeStyle.Success : BadgeStyle.Danger)" Text="@(s.IsAvailable ? "Available" : "In Use")" />
+                                    </Template>
+                                </RadzenDataGridColumn>
+                            </Columns>
+                        </RadzenDataGrid>
+                    </div>
+                </RadzenTab>
+            </Tabs>
+        </RadzenTabs>
+    </RadzenCardContent>
+</RadzenCard>
+
+@code {
+    private int _selectedResourceTab;
+    private DateTime _selectedDate = DateTime.Today;
+
+    private List<ResourceSlot> _projectorSchedule = new();
+    private List<ResourceSlot> _screenSchedule = new();
+    private List<ResourceSlot> _paSystemSchedule = new();
+    private List<ResourceSlot> _meetingRoomSchedule = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSchedule();
+    }
+
+    private async Task LoadSchedule()
+    {
+        var venues = await EventService.GetVenuesAsync();
+        var bookings = await EventService.GetEventBookingsAsync();
+
+        var dayBookings = bookings.Where(b => b.StartDate.Date == _selectedDate.Date).ToList();
+
+        _projectorSchedule = BuildResourceSchedule("Projector", "Main Hall Projector", venues, dayBookings);
+        _screenSchedule = BuildResourceSchedule("Screen", "Main Hall Screen", venues, dayBookings);
+        _paSystemSchedule = BuildResourceSchedule("PA System", "Conference PA", venues, dayBookings);
+        _meetingRoomSchedule = BuildResourceSchedule("Meeting Room", venues.Where(v => v.Capacity <= 50).Select(v => v.Name).FirstOrDefault() ?? "Board Room", venues, dayBookings);
+    }
+
+    private List<ResourceSlot> BuildResourceSchedule(string resourceType, string defaultResourceName, List<Venue> venues, List<EventBooking> bookings)
+    {
+        var slots = new List<ResourceSlot>();
+        var hourSlots = Enumerable.Range(6, 16);
+
+        foreach (var h in hourSlots)
+        {
+            var start = new DateTime(_selectedDate.Year, _selectedDate.Month, _selectedDate.Day, h, 0, 0);
+            var end = start.AddHours(1);
+            var conflicting = bookings.Where(b => b.StartDate < end && b.EndDate > start && (resourceType == "Meeting Room" || b.EquipmentList.Contains(resourceType))).ToList();
+            var isBooked = conflicting.Any();
+
+            slots.Add(new ResourceSlot
+            {
+                ResourceName = defaultResourceName,
+                StartTime = start,
+                EndTime = end,
+                BookedBy = isBooked ? conflicting.First().EventName : "-",
+                IsAvailable = !isBooked
+            });
+        }
+
+        return slots;
+    }
+
+    private class ResourceSlot
+    {
+        public string ResourceName { get; set; } = string.Empty;
+        public DateTime StartTime { get; set; }
+        public DateTime EndTime { get; set; }
+        public string BookedBy { get; set; } = string.Empty;
+        public bool IsAvailable { get; set; }
+    }
+}

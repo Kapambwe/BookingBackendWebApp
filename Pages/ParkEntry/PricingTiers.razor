@@ -1,0 +1,126 @@
+@page "/park-entry/pricing"
+@using BookingBackendWebApp.Services.ParkEntry
+@inject IParkEntryService ParkEntryService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<RadzenStack Gap="24">
+    <RadzenRow>
+        <RadzenColumn Size="4">
+            <RadzenCard>
+                <RadzenStack Gap="8">
+                    <RadzenStack Horizontal="true" Gap="12" AlignItems="AlignItems.Center">
+                        <RadzenIcon Icon="category" Variant="IconVariant.MaterialSymbolsOutlined" />
+                        <RadzenText TextStyle="TextStyle.H6">Total Pricing Tiers</RadzenText>
+                    </RadzenStack>
+                    <RadzenText TextStyle="TextStyle.H2">@_totalTiers</RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="4">
+            <RadzenCard>
+                <RadzenStack Gap="8">
+                    <RadzenStack Horizontal="true" Gap="12" AlignItems="AlignItems.Center">
+                        <RadzenIcon Icon="trending_up" Variant="IconVariant.MaterialSymbolsOutlined" />
+                        <RadzenText TextStyle="TextStyle.H6">Most Expensive Daily Rate</RadzenText>
+                    </RadzenStack>
+                    <RadzenText TextStyle="TextStyle.H2">@_mostExpensive</RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="4">
+            <RadzenCard>
+                <RadzenStack Gap="8">
+                    <RadzenStack Horizontal="true" Gap="12" AlignItems="AlignItems.Center">
+                        <RadzenIcon Icon="payments" Variant="IconVariant.MaterialSymbolsOutlined" />
+                        <RadzenText TextStyle="TextStyle.H6">Highest Annual Rate</RadzenText>
+                    </RadzenStack>
+                    <RadzenText TextStyle="TextStyle.H2">@_highestAnnual</RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenCard>
+        <RadzenStack Gap="16">
+            <RadzenText TextStyle="TextStyle.H5">Park Entry Pricing Tiers</RadzenText>
+            <RadzenDataGrid @ref="_grid" Data="@_pricing" TItem="ParkEntryPricing"
+                AllowFiltering="true" AllowPaging="true" PageSize="10"
+                EditMode="DataGridEditMode.Single"
+                RowUpdate="@OnUpdateRow">
+                <Columns>
+                    <RadzenDataGridColumn TItem="ParkEntryPricing" Property="VisitorCategory" Title="Visitor Category" Sortable="true" Filterable="true" />
+                    <RadzenDataGridColumn TItem="ParkEntryPricing" Property="PricingTier" Title="Pricing Tier" Sortable="true" Filterable="true" />
+                    <RadzenDataGridColumn TItem="ParkEntryPricing" Property="DailyRate" Title="Daily Rate" Sortable="true" Filterable="true">
+                        <Template Context="item">
+                            @item.DailyRate.ToString("C2")
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="ParkEntryPricing" Property="WeeklyRate" Title="Weekly Rate" Sortable="true">
+                        <Template Context="item">
+                            @item.WeeklyRate.ToString("C2")
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="ParkEntryPricing" Property="AnnualRate" Title="Annual Rate" Sortable="true">
+                        <Template Context="item">
+                            @item.AnnualRate.ToString("C2")
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="ParkEntryPricing" Property="VehicleFee" Title="Vehicle Fee" Sortable="true">
+                        <Template Context="item">
+                            @item.VehicleFee.ToString("C2")
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="ParkEntryPricing" Property="BoatFee" Title="Boat Fee" Sortable="true">
+                        <Template Context="item">
+                            @item.BoatFee.ToString("C2")
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="ParkEntryPricing" Property="DronePermitFee" Title="Drone Permit Fee" Sortable="true">
+                        <Template Context="item">
+                            @item.DronePermitFee.ToString("C2")
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="ParkEntryPricing" Property="PhotographyPermitFee" Title="Photo Permit Fee" Sortable="true">
+                        <Template Context="item">
+                            @item.PhotographyPermitFee.ToString("C2")
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenStack>
+    </RadzenCard>
+</RadzenStack>
+
+@code {
+    private RadzenDataGrid<ParkEntryPricing>? _grid;
+    private List<ParkEntryPricing> _pricing = new();
+    private ParkEntryPricing? _selectedPricing;
+    private int _totalTiers;
+    private string _mostExpensive = string.Empty;
+    private string _highestAnnual = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _pricing = await ParkEntryService.GetPricingAsync();
+        _totalTiers = _pricing.Count;
+
+        var maxDaily = _pricing.MaxBy(p => p.DailyRate);
+        _mostExpensive = maxDaily is not null ? maxDaily.DailyRate.ToString("C2") : "N/A";
+
+        var maxAnnual = _pricing.MaxBy(p => p.AnnualRate);
+        _highestAnnual = maxAnnual is not null ? maxAnnual.AnnualRate.ToString("C2") : "N/A";
+    }
+
+    private async Task OnUpdateRow(ParkEntryPricing pricing)
+    {
+        await ParkEntryService.UpdatePricingAsync(pricing);
+        await LoadData();
+        NotificationService.Notify(NotificationSeverity.Success, "Pricing tier updated successfully");
+    }
+}

@@ -1,0 +1,204 @@
+@page "/rangers/patrols"
+@using BookingBackendWebApp.Services.Rangers
+@inject IRangerService RangerService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<PageTitle>Patrol Scheduling</PageTitle>
+
+<RadzenStack Gap="1.5rem">
+    <RadzenRow>
+        <RadzenColumn Size="12">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween">
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.75rem">
+                    <RadzenIcon Icon="route" IconStyle="IconStyle.Primary" Style="font-size: 1.75rem;" />
+                    <RadzenStack Gap="0.125rem">
+                        <RadzenText TextStyle="TextStyle.H5" TagName="TagName.H1" Style="margin: 0;">Patrol Scheduling</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0; color: var(--rz-text-secondary-color);">Schedule and manage ranger patrols</RadzenText>
+                    </RadzenStack>
+                </RadzenStack>
+                <RadzenButton Icon="add" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small" Click="@(() => showPatrolForm = !showPatrolForm)" Text="@(showPatrolForm ? "Cancel" : "New Patrol")" />
+            </RadzenStack>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenRow Gap="1rem">
+        <RadzenColumn Size="12" SizeLG="@(showPatrolForm ? 8 : 12)">
+            <RadzenCard class="rz-shadow-3">
+                <RadzenStack Gap="1rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                        <RadzenIcon Icon="view_list" IconStyle="IconStyle.Primary" />
+                        <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">Current Patrols</RadzenText>
+                        <RadzenBadge BadgeStyle="BadgeStyle.Primary" Text="@($"{patrols.Count} patrols")" />
+                    </RadzenStack>
+                    <RadzenDataGrid Data="@patrols" TItem="Patrol" AllowSorting="true" AllowPaging="true" PageSize="5">
+                        <Columns>
+                            <RadzenDataGridColumn Title="Route" Property="Route" Width="160px" />
+                            <RadzenDataGridColumn Title="Start Time" Width="140px">
+                                <Template Context="p">
+                                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.25rem">
+                                        <RadzenIcon Icon="schedule" Style="font-size: 0.875rem; color: var(--rz-text-secondary-color);" />
+                                        <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0;">@p.StartTime.ToString("MMM dd, HH:mm")</RadzenText>
+                                    </RadzenStack>
+                                </Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn Title="End Time" Width="140px">
+                                <Template Context="p">
+                                    @if (p.EndTime.HasValue)
+                                    {
+                                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.25rem">
+                                            <RadzenIcon Icon="schedule" Style="font-size: 0.875rem; color: var(--rz-text-secondary-color);" />
+                                            <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0;">@p.EndTime.Value.ToString("MMM dd, HH:mm")</RadzenText>
+                                        </RadzenStack>
+                                    }
+                                    else
+                                    {
+                                        <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0; color: var(--rz-text-secondary-color);">In progress</RadzenText>
+                                    }
+                                </Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn Title="Assigned Rangers" Width="180px">
+                                <Template Context="p">
+                                    <RadzenText>@GetRangerNames(p.RangerIds)</RadzenText>
+                                </Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn Title="Status" Width="110px">
+                                <Template Context="p">
+                                    <RadzenBadge Text="@p.Status" BadgeStyle="@GetPatrolStatusBadge(p.Status)" />
+                                </Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn Title="Actions" Width="120px">
+                                <Template Context="p">
+                                    @if (p.Status != "Completed")
+                                    {
+                                        <RadzenButton ButtonStyle="ButtonStyle.Success" Size="ButtonSize.ExtraSmall" Icon="check" Click="@(() => CompletePatrol(p.Id))" Text="Complete" />
+                                    }
+                                </Template>
+                            </RadzenDataGridColumn>
+                        </Columns>
+                    </RadzenDataGrid>
+                </RadzenStack>
+            </RadzenCard>
+
+            <RadzenCard class="rz-shadow-3">
+                <RadzenStack Gap="1rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                        <RadzenIcon Icon="calendar_month" IconStyle="IconStyle.Primary" />
+                        <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">Patrol Calendar</RadzenText>
+                    </RadzenStack>
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" Style="flex-wrap: wrap;">
+                        @foreach (var day in GetCalendarDays())
+                        {
+                            var dayPatrols = patrols.Where(p => p.StartTime.Date == day.Date).ToList();
+                            <RadzenCard Style="@GetCalendarDayStyle(dayPatrols.Any())">
+                                <RadzenStack Gap="0.25rem">
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="font-weight: 600; margin: 0;">@day.ToString("ddd, MMM dd")</RadzenText>
+                                    @if (dayPatrols.Any())
+                                    {
+                                        @foreach (var p in dayPatrols)
+                                        {
+                                            <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0; font-size: 0.7rem;">
+                                                @p.Route - @p.Status
+                                            </RadzenText>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0; color: var(--rz-text-secondary-color); font-size: 0.7rem;">No patrols</RadzenText>
+                                    }
+                                </RadzenStack>
+                            </RadzenCard>
+                        }
+                    </RadzenStack>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+
+        @if (showPatrolForm)
+        {
+            <RadzenColumn Size="12" SizeLG="4">
+                <RadzenCard class="rz-shadow-3" Style="border-top: 4px solid #00897B;">
+                    <RadzenTemplateForm TItem="Patrol" Model="@newPatrol" Submit="@SavePatrol">
+                        <RadzenStack Gap="1rem">
+                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                                <RadzenIcon Icon="add_road" IconStyle="IconStyle.Primary" />
+                                <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">Schedule New Patrol</RadzenText>
+                            </RadzenStack>
+                            <RadzenDropDown TValue="int" Data="@activeRangers" TextProperty="Name" ValueProperty="Id" @bind-Value="@selectedRangerId" Placeholder="Select Ranger" Style="width: 100%;" />
+                            <RadzenTextBox @bind-Value="@newPatrol.Route" Placeholder="Route" Style="width: 100%;" />
+                            <RadzenDatePicker @bind-Value="@newPatrol.StartTime" Placeholder="Start Time" Style="width: 100%;" />
+                            <RadzenTextBox @bind-Value="@newPatrol.Notes" Placeholder="Notes" Style="width: 100%;" TextMode="InputType.TextArea" Rows="3" />
+                            <RadzenButton ButtonType="ButtonType.Submit" ButtonStyle="ButtonStyle.Primary" Text="Start Patrol" Style="width: 100%;" />
+                        </RadzenStack>
+                    </RadzenTemplateForm>
+                </RadzenCard>
+            </RadzenColumn>
+        }
+    </RadzenRow>
+</RadzenStack>
+
+@code {
+    private List<Patrol> patrols = new();
+    private List<Ranger> rangers = new();
+    private List<Ranger> activeRangers = new();
+    private bool showPatrolForm;
+    private int selectedRangerId;
+    private Patrol newPatrol = new() { StartTime = DateTime.Now };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        rangers = await RangerService.GetRangersAsync();
+        activeRangers = rangers.Where(r => r.IsActive).ToList();
+        patrols = await RangerService.GetPatrolsAsync();
+    }
+
+    private async Task SavePatrol()
+    {
+        newPatrol.RangerIds = new() { selectedRangerId };
+        await RangerService.CreatePatrolAsync(newPatrol);
+        NotificationService.Notify(NotificationSeverity.Success, "Patrol started successfully");
+        newPatrol = new() { StartTime = DateTime.Now };
+        selectedRangerId = 0;
+        showPatrolForm = false;
+        await LoadData();
+    }
+
+    private async Task CompletePatrol(int id)
+    {
+        var confirmed = await DialogService.Confirm("Mark this patrol as completed?", "Confirm");
+        if (confirmed == true)
+        {
+            await RangerService.CompletePatrolAsync(id);
+            NotificationService.Notify(NotificationSeverity.Success, "Patrol completed");
+            await LoadData();
+        }
+    }
+
+    private List<DateTime> GetCalendarDays()
+    {
+        var today = DateTime.Today;
+        return Enumerable.Range(0, 7).Select(d => today.AddDays(d)).ToList();
+    }
+
+    private string GetRangerNames(List<int> rangerIds)
+    {
+        var names = rangers.Where(r => rangerIds.Contains(r.Id)).Select(r => r.Name).ToList();
+        return names.Count > 0 ? string.Join(", ", names) : "Unassigned";
+    }
+
+    private string GetCalendarDayStyle(bool hasPatrols) =>
+        $"width: 130px; padding: 0.5rem; {(hasPatrols ? "border-left: 3px solid #00897B;" : "")}";
+
+    private BadgeStyle GetPatrolStatusBadge(string status) => status switch
+    {
+        "InProgress" or "In Progress" => BadgeStyle.Info,
+        "Completed" => BadgeStyle.Success,
+        "Cancelled" => BadgeStyle.Danger,
+        _ => BadgeStyle.Light
+    };
+}

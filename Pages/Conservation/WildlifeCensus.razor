@@ -1,0 +1,220 @@
+@page "/conservation/census"
+@using BookingBackendWebApp.Services.Conservation
+@inject IConservationService ConservationService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<PageTitle>Wildlife Census</PageTitle>
+
+<RadzenStack Gap="1.5rem">
+    <RadzenRow>
+        <RadzenColumn Size="12">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween">
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.75rem">
+                    <RadzenIcon Icon="bar_chart" IconStyle="IconStyle.Primary" Style="font-size: 1.75rem;" />
+                    <RadzenStack Gap="0.125rem">
+                        <RadzenText TextStyle="TextStyle.H5" TagName="TagName.H1" Style="margin: 0;">Wildlife Census</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0; color: var(--rz-text-secondary-color);">Track wildlife populations across the reserve</RadzenText>
+                    </RadzenStack>
+                </RadzenStack>
+                <RadzenButton Icon="refresh" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="@LoadData" Text="Refresh" />
+            </RadzenStack>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenRow Gap="1rem">
+        <RadzenColumn Size="12" SizeMD="4">
+            <RadzenCard class="rz-shadow-3" Style="height: 100%; background: linear-gradient(135deg, #1B2A4A 0%, #00897B 100%);">
+                <RadzenStack Gap="0.5rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Start">
+                        <RadzenIcon Icon="pets" Style="font-size: 2rem; color: rgba(255,255,255,0.9);" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="Total" Style="font-size: 0.7rem;" />
+                    </RadzenStack>
+                    <RadzenText TextStyle="TextStyle.H5" Style="color: white; margin: 0; font-weight: 700;">@totalSpecies</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: rgba(255,255,255,0.9); margin: 0;">Total Species</RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMD="4">
+            <RadzenCard class="rz-shadow-3" Style="height: 100%; background: linear-gradient(135deg, #00897B 0%, #4DB6AC 100%);">
+                <RadzenStack Gap="0.5rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Start">
+                        <RadzenIcon Icon="groups" Style="font-size: 2rem; color: rgba(255,255,255,0.9);" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="Population" Style="font-size: 0.7rem;" />
+                    </RadzenStack>
+                    <RadzenText TextStyle="TextStyle.H5" Style="color: white; margin: 0; font-weight: 700;">@totalPopulation.ToString("N0")</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: rgba(255,255,255,0.9); margin: 0;">Total Population</RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMD="4">
+            <RadzenCard class="rz-shadow-3" Style="height: 100%; background: linear-gradient(135deg, #4DB6AC 0%, #26A69A 100%);">
+                <RadzenStack Gap="0.5rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Start">
+                        <RadzenIcon Icon="calendar_today" Style="font-size: 2rem; color: rgba(255,255,255,0.9);" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="Latest" Style="font-size: 0.7rem;" />
+                    </RadzenStack>
+                    <RadzenText TextStyle="TextStyle.H5" Style="color: white; margin: 0; font-weight: 700;">@lastCensusDate</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: rgba(255,255,255,0.9); margin: 0;">Last Census Date</RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenCard class="rz-shadow-3">
+        <RadzenStack Gap="1rem">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                <RadzenIcon Icon="pets" IconStyle="IconStyle.Primary" />
+                <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">Species Overview</RadzenText>
+                <RadzenBadge BadgeStyle="BadgeStyle.Primary" Text="@($"{species.Count} species")" />
+            </RadzenStack>
+            <RadzenDataGrid Data="@species" TItem="Species" AllowSorting="true" AllowPaging="true" PageSize="5">
+                <Columns>
+                    <RadzenDataGridColumn Title="Species Name" Property="Name" Width="180px" />
+                    <RadzenDataGridColumn Title="Population" Property="Population" Width="120px" />
+                    <RadzenDataGridColumn Title="Trend" Width="120px">
+                        <Template Context="s">
+                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.25rem">
+                                @if (s.PopulationTrend == PopulationTrend.Increasing)
+                                {
+                                    <RadzenIcon Icon="arrow_upward" Style="color: #4CAF50;" />
+                                    <RadzenText Style="color: #4CAF50;">Increasing</RadzenText>
+                                }
+                                else if (s.PopulationTrend == PopulationTrend.Declining)
+                                {
+                                    <RadzenIcon Icon="arrow_downward" Style="color: #F44336;" />
+                                    <RadzenText Style="color: #F44336;">Declining</RadzenText>
+                                }
+                                else
+                                {
+                                    <RadzenIcon Icon="remove" Style="color: #FF9800;" />
+                                    <RadzenText Style="color: #FF9800;">Stable</RadzenText>
+                                }
+                            </RadzenStack>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn Title="Status" Width="140px">
+                        <Template Context="s">
+                            <RadzenBadge Text="@s.ConservationStatus" BadgeStyle="@GetStatusBadge(s.ConservationStatus)" />
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenStack>
+    </RadzenCard>
+
+    <RadzenCard class="rz-shadow-3">
+        <RadzenStack Gap="1rem">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween">
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                    <RadzenIcon Icon="fact_check" IconStyle="IconStyle.Primary" />
+                    <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">Census Records</RadzenText>
+                    <RadzenBadge BadgeStyle="BadgeStyle.Primary" Text="@($"{censusRecords.Count} records")" />
+                </RadzenStack>
+                <RadzenButton Icon="add" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small" Click="@(() => showCensusForm = !showCensusForm)" Text="@(showCensusForm ? "Cancel" : "Add Record")" />
+            </RadzenStack>
+
+            @if (showCensusForm)
+            {
+                <RadzenCard Style="background: var(--rz-base-100);">
+                    <RadzenTemplateForm TItem="CensusRecord" Model="@newCensusRecord" Submit="@SaveCensusRecord">
+                        <RadzenStack Gap="1rem">
+                            <RadzenRow Gap="1rem">
+                                <RadzenColumn Size="12" SizeMD="3">
+                                    <RadzenDropDown Data="@species" TextProperty="Name" ValueProperty="Id" @bind-Value="@newCensusRecord.SpeciesId" Placeholder="Select Species" Style="width: 100%;" />
+                                </RadzenColumn>
+                                <RadzenColumn Size="12" SizeMD="3">
+                                    <RadzenNumeric @bind-Value="@newCensusRecord.Count" Placeholder="Count" Min="0" Step="1" Style="width: 100%;" />
+                                </RadzenColumn>
+                                <RadzenColumn Size="12" SizeMD="3">
+                                    <RadzenDatePicker @bind-Value="@newCensusRecord.Date" Placeholder="Date" Style="width: 100%;" />
+                                </RadzenColumn>
+                                <RadzenColumn Size="12" SizeMD="3">
+                                    <RadzenTextBox @bind-Value="@newCensusRecord.Location" Placeholder="Location" Style="width: 100%;" />
+                                </RadzenColumn>
+                            </RadzenRow>
+                            <RadzenRow>
+                                <RadzenColumn Size="12" SizeMD="3">
+                                    <RadzenTextBox @bind-Value="@newCensusRecord.Method" Placeholder="Method (e.g. Aerial)" Style="width: 100%;" />
+                                </RadzenColumn>
+                                <RadzenColumn Size="12" SizeMD="3">
+                                    <RadzenButton ButtonType="ButtonType.Submit" ButtonStyle="ButtonStyle.Primary" Text="Save Record" />
+                                </RadzenColumn>
+                            </RadzenRow>
+                        </RadzenStack>
+                    </RadzenTemplateForm>
+                </RadzenCard>
+            }
+
+            <RadzenDataGrid Data="@censusRecords" TItem="CensusRecord" AllowSorting="true" AllowPaging="true" PageSize="5">
+                <Columns>
+                    <RadzenDataGridColumn Title="Species" Width="160px">
+                        <Template Context="r">
+                            <RadzenText>@GetSpeciesName(r.SpeciesId)</RadzenText>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn Title="Count" Property="Count" Width="100px" />
+                    <RadzenDataGridColumn Title="Date" Width="120px">
+                        <Template Context="r">
+                            <RadzenText>@r.Date.ToString("MMM dd, yyyy")</RadzenText>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn Title="Location" Property="Location" Width="160px" />
+                    <RadzenDataGridColumn Title="Method" Property="Method" Width="140px" />
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenStack>
+    </RadzenCard>
+</RadzenStack>
+
+@code {
+    private List<Species> species = new();
+    private List<CensusRecord> censusRecords = new();
+    private int totalSpecies;
+    private int totalPopulation;
+    private string lastCensusDate = "-";
+    private bool showCensusForm;
+    private CensusRecord newCensusRecord = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        species = await ConservationService.GetSpeciesAsync();
+        censusRecords = await ConservationService.GetCensusRecordsAsync();
+
+        totalSpecies = species.Count;
+        totalPopulation = species.Sum(s => s.Population);
+        lastCensusDate = species
+            .Where(s => s.LastCensusDate.HasValue)
+            .Select(s => s.LastCensusDate)
+            .Max()?.ToString("MMM dd, yyyy") ?? "-";
+    }
+
+    private async Task SaveCensusRecord()
+    {
+        await ConservationService.CreateCensusRecordAsync(newCensusRecord);
+        NotificationService.Notify(NotificationSeverity.Success, "Census record added successfully");
+        newCensusRecord = new();
+        showCensusForm = false;
+        censusRecords = await ConservationService.GetCensusRecordsAsync();
+    }
+
+    private string GetSpeciesName(int speciesId)
+    {
+        var s = species.FirstOrDefault(sp => sp.Id == speciesId);
+        return s?.Name ?? $"Species #{speciesId}";
+    }
+
+    private BadgeStyle GetStatusBadge(string status) => status switch
+    {
+        "Endangered" or "Critically Endangered" => BadgeStyle.Danger,
+        "Vulnerable" => BadgeStyle.Warning,
+        "Near Threatened" => BadgeStyle.Info,
+        "Least Concern" => BadgeStyle.Success,
+        _ => BadgeStyle.Light
+    };
+}

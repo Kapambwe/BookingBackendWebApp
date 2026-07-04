@@ -1,0 +1,205 @@
+@page "/revenue-management/pricing"
+@namespace BookingBackendWebApp.Pages.RevenueManagement
+@using BookingBackendWebApp.Services.RevenueManagement
+@inject IRevenueManagementService RevenueService
+@inject DialogService Dialog
+@inject NotificationService Notification
+
+<RadzenStack Gap="16px">
+    <RadzenRow>
+        <RadzenColumn Size="6">
+            <RadzenText TextStyle="TextStyle.H5">AI Pricing Engine</RadzenText>
+        </RadzenColumn>
+        <RadzenColumn Size="6" Style="text-align:right">
+            <RadzenButton Text="Add Rule" Icon="add" ButtonStyle="ButtonStyle.Primary" Click="@(() => ShowDialog = true)" />
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenRow>
+        <RadzenColumn Size="3">
+            <RadzenCard>
+                <RadzenStack Gap="8px">
+                    <RadzenText TextStyle="TextStyle.Subtitle2">Standard Room</RadzenText>
+                    <RadzenText TextStyle="TextStyle.H4">@_standardRate.ToString("N0")</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body2">KES / night</RadzenText>
+                    <RadzenBadge Text="@(_standardRate >= 10000 ? "Peak" : "Off-Peak")" BadgeStyle="@(_standardRate >= 10000 ? BadgeStyle.Warning : BadgeStyle.Success)" />
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="3">
+            <RadzenCard>
+                <RadzenStack Gap="8px">
+                    <RadzenText TextStyle="TextStyle.Subtitle2">Deluxe Room</RadzenText>
+                    <RadzenText TextStyle="TextStyle.H4">@_deluxeRate.ToString("N0")</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body2">KES / night</RadzenText>
+                    <RadzenBadge Text="@(_deluxeRate >= 18000 ? "Peak" : "Off-Peak")" BadgeStyle="@(_deluxeRate >= 18000 ? BadgeStyle.Warning : BadgeStyle.Success)" />
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="3">
+            <RadzenCard>
+                <RadzenStack Gap="8px">
+                    <RadzenText TextStyle="TextStyle.Subtitle2">Suite</RadzenText>
+                    <RadzenText TextStyle="TextStyle.H4">@_suiteRate.ToString("N0")</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body2">KES / night</RadzenText>
+                    <RadzenBadge Text="@(_suiteRate >= 25000 ? "Peak" : "Off-Peak")" BadgeStyle="@(_suiteRate >= 25000 ? BadgeStyle.Warning : BadgeStyle.Success)" />
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="3">
+            <RadzenCard>
+                <RadzenStack Gap="8px">
+                    <RadzenText TextStyle="TextStyle.Subtitle2">Occupancy Forecast</RadzenText>
+                    <RadzenText TextStyle="TextStyle.H4">@($"{_currentOccupancy:P0}")</RadzenText>
+                    <RadzenProgressBar Value="@((int)(_currentOccupancy * 100))" Max="100" Style="height:8px" />
+                    <RadzenText TextStyle="TextStyle.Body2">Current period utilization</RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenCard>
+        <RadzenStack Gap="12px">
+            <RadzenText TextStyle="TextStyle.H6">Pricing Rules</RadzenText>
+            <RadzenDataGrid Data="@_pricingRules" TItem="PricingRule" AllowFiltering="true" AllowSorting="true">
+                <Columns>
+                    <RadzenDataGridColumn TItem="PricingRule" Property="Name" Title="Name" />
+                    <RadzenDataGridColumn TItem="PricingRule" Property="Condition" Title="Condition" />
+                    <RadzenDataGridColumn TItem="PricingRule" Property="AdjustmentType" Title="Adjustment Type" />
+                    <RadzenDataGridColumn TItem="PricingRule" Property="AdjustmentValue" Title="Value">
+                        <Template>
+                            @{
+                                var rule = context as PricingRule;
+                                if (rule != null)
+                                {
+                                    if (rule.AdjustmentType == AdjustmentType.Percentage)
+                                    {
+                                        <span>@($"{rule.AdjustmentValue:P0}")</span>
+                                    }
+                                    else
+                                    {
+                                        <span>@rule.AdjustmentValue.ToString("N2")</span>
+                                    }
+                                }
+                            }
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="PricingRule" Property="IsActive" Title="Active">
+                        <Template>
+                            @{
+                                var rule = context as PricingRule;
+                                if (rule != null)
+                                {
+                                    <RadzenBadge Text="@(rule.IsActive ? "Active" : "Inactive")"
+                                                  BadgeStyle="@(rule.IsActive ? BadgeStyle.Success : BadgeStyle.Secondary)" />
+                                }
+                            }
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="PricingRule" Title="Actions">
+                        <Template>
+                            @{
+                                var rule = context as PricingRule;
+                                if (rule != null)
+                                {
+                                    <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Base" Size="ButtonSize.Small"
+                                                  Click="@(() => EditRule(rule))" />
+                                    <RadzenButton Icon="@(rule.IsActive ? "toggle_off" : "toggle_on")" ButtonStyle="ButtonStyle.Base" Size="ButtonSize.Small"
+                                                  Click="@(() => ToggleRule(rule.Id))" />
+                                }
+                            }
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenStack>
+    </RadzenCard>
+</RadzenStack>
+
+@if (ShowDialog)
+{
+    <RadzenDialog IsOpen="true" Title="@(_editingRule?.Id > 0 ? "Edit Rule" : "Add Rule")" Close="@(() => ShowDialog = false)">
+        <RadzenTemplateForm TItem="PricingRule" Data="@_editingRule" Submit="@SaveRule">
+            <RadzenStack Gap="12px">
+                <RadzenTextBox @bind-Value="_editingRule.Name" Placeholder="Rule name" />
+                <RadzenTextBox @bind-Value="_editingRule.Condition" Placeholder="Condition (e.g. occupancy > 80%)" />
+                <RadzenDropDown @bind-Value="_editingRule.AdjustmentType" Data="@adjustmentTypes" />
+                <RadzenTextBox @bind-Value="_editValue" Placeholder="Adjustment value" />
+                <RadzenStack Horizontal="true" Gap="8px" JustifyContent="JustifyContent.End">
+                    <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Base" Click="@(() => ShowDialog = false)" />
+                    <RadzenButton Text="Save" ButtonStyle="ButtonStyle.Primary" HtmlType="submit" />
+                </RadzenStack>
+            </RadzenStack>
+        </RadzenTemplateForm>
+    </RadzenDialog>
+}
+
+@code {
+    private List<PricingRule> _pricingRules = new();
+    private decimal _standardRate;
+    private decimal _deluxeRate;
+    private decimal _suiteRate;
+    private double _currentOccupancy;
+    private bool ShowDialog;
+    private PricingRule _editingRule = new();
+    private string _editValue = string.Empty;
+    private AdjustmentType[] adjustmentTypes = Enum.GetValues<AdjustmentType>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _pricingRules = await RevenueService.GetPricingRulesAsync();
+        _standardRate = await RevenueService.CalculateOptimalPriceAsync(1, DateTime.Today);
+        _deluxeRate = await RevenueService.CalculateOptimalPriceAsync(2, DateTime.Today);
+        _suiteRate = await RevenueService.CalculateOptimalPriceAsync(3, DateTime.Today);
+
+        var forecasts = await RevenueService.GetForecastsAsync();
+        var current = forecasts.FirstOrDefault();
+        _currentOccupancy = current?.Occupancy ?? 0.72;
+    }
+
+    private void EditRule(PricingRule rule)
+    {
+        _editingRule = new PricingRule
+        {
+            Id = rule.Id,
+            Name = rule.Name,
+            Condition = rule.Condition,
+            AdjustmentType = rule.AdjustmentType,
+            AdjustmentValue = rule.AdjustmentValue,
+            IsActive = rule.IsActive
+        };
+        _editValue = rule.AdjustmentValue.ToString();
+        ShowDialog = true;
+    }
+
+    private async Task SaveRule()
+    {
+        if (decimal.TryParse(_editValue, out var val))
+            _editingRule.AdjustmentValue = val;
+
+        if (_editingRule.Id > 0)
+        {
+            await RevenueService.UpdatePricingRuleAsync(_editingRule);
+            Notification.Notify(NotificationSeverity.Success, "Rule updated");
+        }
+        else
+        {
+            await RevenueService.CreatePricingRuleAsync(_editingRule);
+            Notification.Notify(NotificationSeverity.Success, "Rule created");
+        }
+
+        ShowDialog = false;
+        await LoadDataAsync();
+    }
+
+    private async Task ToggleRule(int id)
+    {
+        await RevenueService.TogglePricingRuleAsync(id);
+        await LoadDataAsync();
+    }
+}

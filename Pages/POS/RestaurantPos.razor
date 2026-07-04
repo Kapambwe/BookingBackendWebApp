@@ -1,0 +1,223 @@
+@page "/pos/restaurant"
+@attribute [Authorize]
+@using BookingBackendWebApp.Services.Pos
+@inject IPosService PosService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <RadzenCard>
+        <RadzenCardHeader>
+            <span style="font-size:1.1rem;font-weight:500">Table Map</span>
+        </RadzenCardHeader>
+        <RadzenCardContent>
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
+                @for (int i = 1; i <= 20; i++)
+                {
+                    var tableNo = i;
+                    var order = _orders.FirstOrDefault(o => o.TableNumber == tableNo && o.Status == PosOrderStatus.Open);
+                    var isOccupied = order != null;
+                    <div style="padding:12px;border:2px solid @(isOccupied ? "#ff9800" : "#4caf50");border-radius:8px;cursor:pointer;text-align:center;background:@(isOccupied ? "#fff3e0" : "#e8f5e9")" @onclick="@(() => SelectTable(tableNo))">
+                        <div style="font-weight:bold">Table @tableNo</div>
+                        <div style="font-size:0.8rem;color:@(isOccupied ? "#e65100" : "#2e7d32")">@(isOccupied ? "Occupied" : "Free")</div>
+                    </div>
+                }
+            </div>
+        </RadzenCardContent>
+    </RadzenCard>
+
+    <div style="display:flex;flex-direction:column;gap:16px">
+        <RadzenCard>
+            <RadzenCardHeader>
+                <span style="font-size:1.1rem;font-weight:500">Menu Items</span>
+            </RadzenCardHeader>
+            <RadzenCardContent>
+                <RadzenDropDown @bind-Value="_selectedCategory" Data="@_categories" Placeholder="All Categories" Change="@(() => _selectedCategoryReload = true)" Style="margin-bottom:8px" />
+                <RadzenDataGrid Data="@FilteredMenuItems" TItem="PosMenuItem" AllowSorting="true" AllowPaging="true" PageSize="5">
+                    <Columns>
+                        <RadzenDataGridColumn TItem="PosMenuItem" Property="Name" Title="Item" />
+                        <RadzenDataGridColumn TItem="PosMenuItem" Property="Category" Title="Category" />
+                        <RadzenDataGridColumn TItem="PosMenuItem" Property="Price" Title="Price">
+                            <Template Context="m">@m.Price.ToString("C")</Template>
+                        </RadzenDataGridColumn>
+                        <RadzenDataGridColumn TItem="PosMenuItem" Title="Qty">
+                            <Template Context="m">
+                                <RadzenNumeric @bind-Value="_itemQuantities[m.Id]" Min="0" Max="20" Style="width:70px" />
+                            </Template>
+                        </RadzenDataGridColumn>
+                        <RadzenDataGridColumn TItem="PosMenuItem" Title="Actions" Width="80px">
+                            <Template Context="m">
+                                <RadzenButton Text="Add" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small" Click="@(() => AddToOrder(m))" Disabled="@(!m.IsAvailable)" />
+                            </Template>
+                        </RadzenDataGridColumn>
+                    </Columns>
+                </RadzenDataGrid>
+            </RadzenCardContent>
+        </RadzenCard>
+
+        <RadzenCard>
+            <RadzenCardHeader>
+                <div style="display:flex;align-items:center;justify-content:space-between">
+                    <span style="font-size:1.1rem;font-weight:500">Current Order - Table @_selectedTable</span>
+                    <RadzenButton Text="New Order" ButtonStyle="ButtonStyle.Info" Size="ButtonSize.Small" Click="@StartNewOrder" />
+                </div>
+            </RadzenCardHeader>
+            <RadzenCardContent>
+                @if (_currentOrder != null)
+                {
+                    <RadzenDataGrid Data="@_currentOrder.Items" TItem="PosOrderItem" AllowSorting="false" AllowPaging="false">
+                        <Columns>
+                            <RadzenDataGridColumn TItem="PosOrderItem" Property="MenuItemId" Title="Item" />
+                            <RadzenDataGridColumn TItem="PosOrderItem" Property="Quantity" Title="Qty" />
+                            <RadzenDataGridColumn TItem="PosOrderItem" Property="UnitPrice" Title="Price">
+                                <Template Context="i">@i.UnitPrice.ToString("C")</Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn TItem="PosOrderItem" Property="TotalPrice" Title="Total">
+                                <Template Context="i">@i.TotalPrice.ToString("C")</Template>
+                            </RadzenDataGridColumn>
+                        </Columns>
+                    </RadzenDataGrid>
+                    <div style="margin-top:12px;font-size:1.2rem;font-weight:bold;text-align:right">
+                        Total: @_currentOrder.TotalAmount.ToString("C")
+                    </div>
+                    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+                        <RadzenButton Text="Split Bill" ButtonStyle="ButtonStyle.Secondary" Click="@SplitBill" />
+                        <RadzenButton Text="Pay" ButtonStyle="ButtonStyle.Primary" Click="@ProcessPayment" />
+                    </div>
+                }
+                else
+                {
+                    <div style="text-align:center;padding:24px;color:#888">No active order. Select a table and click "New Order".</div>
+                }
+            </RadzenCardContent>
+        </RadzenCard>
+    </div>
+</div>
+
+@code {
+    private List<PosOrder> _orders = new();
+    private List<PosMenuItem> _menuItems = new();
+    private int _selectedTable = 1;
+    private PosOrder? _currentOrder;
+    private PosCategory? _selectedCategory;
+    private bool _selectedCategoryReload;
+
+    private Dictionary<int, int> _itemQuantities = new();
+
+    private List<PosCategory> _categories = Enum.GetValues<PosCategory>().ToList();
+
+    private List<PosMenuItem> FilteredMenuItems =>
+        _selectedCategory.HasValue
+            ? _menuItems.Where(m => m.Category == _selectedCategory.Value).ToList()
+            : _menuItems;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            _menuItems = await PosService.GetMenuItemsAsync();
+            _orders = await PosService.GetOrdersAsync();
+            foreach (var item in _menuItems)
+                _itemQuantities[item.Id] = 0;
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Error", $"Failed to load: {ex.Message}");
+        }
+    }
+
+    private void SelectTable(int tableNo)
+    {
+        _selectedTable = tableNo;
+        _currentOrder = _orders.FirstOrDefault(o => o.TableNumber == tableNo && o.Status == PosOrderStatus.Open);
+    }
+
+    private async Task StartNewOrder()
+    {
+        if (_currentOrder != null)
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Warning", $"Table {_selectedTable} already has an open order");
+            return;
+        }
+
+        try
+        {
+            var order = new PosOrder { TableNumber = _selectedTable };
+            _currentOrder = await PosService.CreateOrderAsync(order);
+            _orders.Add(_currentOrder);
+            NotificationService.Notify(NotificationSeverity.Success, "Success", $"Order created for Table {_selectedTable}");
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Error", $"Failed to create order: {ex.Message}");
+        }
+    }
+
+    private async Task AddToOrder(PosMenuItem item)
+    {
+        if (_currentOrder == null)
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Warning", "Please start an order first");
+            return;
+        }
+
+        var qty = _itemQuantities.GetValueOrDefault(item.Id, 0);
+        if (qty <= 0)
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Warning", "Set a quantity greater than 0");
+            return;
+        }
+
+        try
+        {
+            var orderItem = new PosOrderItem
+            {
+                MenuItemId = item.Id,
+                Quantity = qty,
+                UnitPrice = item.Price,
+                TotalPrice = item.Price * qty
+            };
+            _currentOrder = await PosService.AddOrderItemAsync(_currentOrder.Id, orderItem);
+            _itemQuantities[item.Id] = 0;
+            NotificationService.Notify(NotificationSeverity.Success, "Added", $"{qty}x {item.Name}");
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Error", $"Failed to add item: {ex.Message}");
+        }
+    }
+
+    private async Task SplitBill()
+    {
+        if (_currentOrder == null) return;
+        var splits = await DialogService.Confirm("Split bill evenly?", "Split Bill", new ConfirmOptions { OkButtonText = "Split", CancelButtonText = "Cancel" });
+        if (splits != true) return;
+
+        var splitAmount = _currentOrder.TotalAmount / 2;
+        NotificationService.Notify(NotificationSeverity.Info, "Split", $"Bill split: 2 x {splitAmount.ToString("C")}");
+    }
+
+    private async Task ProcessPayment()
+    {
+        if (_currentOrder == null) return;
+        var confirm = await DialogService.Confirm($"Process payment of {_currentOrder.TotalAmount.ToString("C")}?", "Payment", new ConfirmOptions { OkButtonText = "Pay", CancelButtonText = "Cancel" });
+        if (confirm != true) return;
+
+        try
+        {
+            await PosService.ProcessPaymentAsync(_currentOrder.Id, _currentOrder.TotalAmount);
+            NotificationService.Notify(NotificationSeverity.Success, "Success", "Payment processed");
+            _currentOrder = null;
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Error", $"Payment failed: {ex.Message}");
+        }
+    }
+}

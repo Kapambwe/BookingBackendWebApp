@@ -1,0 +1,208 @@
+@page "/accommodation"
+@namespace BookingBackendWebApp.Pages.Accommodation
+@inject IAccommodationService AccommodationService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<RadzenCard>
+    <h3>Room Inventory</h3>
+    <div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin-top:12px;">
+        <div>
+            <RadzenLabel Text="Room Type" Component="filterType" />
+            <RadzenDropDown @bind-Value="@filterType" Data="@roomTypeOptions" Placeholder="All Types" Id="filterType" Change="@ApplyFilters" />
+        </div>
+        <div>
+            <RadzenLabel Text="Status" Component="filterStatus" />
+            <RadzenDropDown @bind-Value="@filterStatus" Data="@statusOptions" Placeholder="All Statuses" Id="filterStatus" Change="@ApplyFilters" />
+        </div>
+        <div>
+            <RadzenLabel Text="Lodge Type" Component="filterLodge" />
+            <RadzenDropDown @bind-Value="@filterLodge" Data="@lodgeTypeOptions" Placeholder="All Lodge Types" Id="filterLodge" Change="@ApplyFilters" />
+        </div>
+        <RadzenButton Text="Clear Filters" ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Small" Click="@ClearFilters" />
+    </div>
+</RadzenCard>
+
+<RadzenCard>
+    <RadzenDataGrid TItem="Room" Data="@filteredRooms" AllowPaging="true" PageSize="15" AllowSorting="true" AllowFiltering="false">
+        <Columns>
+            <RadzenDataGridColumn TItem="Room" Property="RoomNumber" Title="Room" Sortable="true" Width="100px" />
+            <RadzenDataGridColumn TItem="Room" Title="Type" Sortable="true" SortProperty="RoomType" Width="120px">
+                <Template Context="r"><RadzenBadge Text="@r.RoomType.ToString()" BadgeStyle="BadgeStyle.Info" /></Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="Room" Title="Lodge" Sortable="true" SortProperty="LodgeType" Width="120px">
+                <Template Context="r">@r.LodgeType.ToString()</Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="Room" Property="Capacity" Title="Capacity" Sortable="true" Width="90px" />
+            <RadzenDataGridColumn TItem="Room" Title="Base Rate" Sortable="true" SortProperty="BaseRate" Width="120px">
+                <Template Context="r">@r.BaseRate.ToString("N0") KES</Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="Room" Title="Status" Sortable="true" SortProperty="Status" Width="120px">
+                <Template Context="r">
+                    <RadzenBadge Text="@r.Status.ToString()" BadgeStyle="@GetStatusBadge(r.Status)" />
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="Room" Property="Floor" Title="Floor" Sortable="true" Width="80px" />
+            <RadzenDataGridColumn TItem="Room" Title="Actions" Width="180px">
+                <Template Context="r">
+                    <RadzenButton ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small" Icon="edit" Tooltip="Edit" Click="@(() => OpenEditDialog(r))" />
+                    <RadzenButton ButtonStyle="ButtonStyle.Warning" Size="ButtonSize.Small" Icon="swap_horiz" Tooltip="Change Status" Click="@(() => OpenStatusDialog(r))" />
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+</RadzenCard>
+
+@if (showEditDialog)
+{
+    <RadzenDialog>
+        <RadzenCard Style="min-width:450px;">
+            <RadzenContentContainer>
+                <h4>Edit Room - @editRoom.RoomNumber</h4>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div>
+                        <RadzenLabel Text="Room Number" Component="editNum" />
+                        <RadzenTextBox @bind-Value="@editRoom.RoomNumber" Id="editNum" />
+                    </div>
+                    <div>
+                        <RadzenLabel Text="Capacity" Component="editCap" />
+                        <RadzenNumeric @bind-Value="@editRoom.Capacity" Id="editCap" Min="1" Step="1" />
+                    </div>
+                    <div>
+                        <RadzenLabel Text="Base Rate" Component="editRate" />
+                        <RadzenNumeric @bind-Value="@editRoom.BaseRate" Id="editRate" Min="0" Step="500" />
+                    </div>
+                    <div>
+                        <RadzenLabel Text="Floor" Component="editFloor" />
+                        <RadzenNumeric @bind-Value="@editRoom.Floor" Id="editFloor" Min="0" Step="1" />
+                    </div>
+                </div>
+                <RadzenLabel Text="Description" Component="editDesc" />
+                <RadzenTextArea @bind-Value="@editRoom.Description" Id="editDesc" Rows="2" Style="width:100%;" />
+                <div style="margin-top:16px;display:flex;gap:8px;">
+                    <RadzenButton Text="Save" ButtonStyle="ButtonStyle.Primary" Click="@SaveRoom" />
+                    <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Secondary" Click="@(() => showEditDialog = false)" />
+                </div>
+            </RadzenContentContainer>
+        </RadzenCard>
+    </RadzenDialog>
+}
+
+@if (showStatusDialog)
+{
+    <RadzenDialog>
+        <RadzenCard Style="min-width:350px;">
+            <RadzenContentContainer>
+                <h4>Change Status - @statusRoom.RoomNumber</h4>
+                <RadzenLabel Text="New Status" Component="newStatus" />
+                <RadzenDropDown @bind-Value="@newStatusValue" Data="@roomStatuses" Id="newStatus" />
+                <div style="margin-top:16px;display:flex;gap:8px;">
+                    <RadzenButton Text="Update" ButtonStyle="ButtonStyle.Primary" Click="@UpdateStatus" />
+                    <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Secondary" Click="@(() => showStatusDialog = false)" />
+                </div>
+            </RadzenContentContainer>
+        </RadzenCard>
+    </RadzenDialog>
+}
+
+@code {
+    private List<Room> allRooms = new();
+    private List<Room> filteredRooms = new();
+
+    private RoomType? filterType;
+    private RoomStatus? filterStatus;
+    private LodgeType? filterLodge;
+    private RoomStatus[] roomStatuses = Enum.GetValues<RoomStatus>();
+
+    private bool showEditDialog;
+    private bool showStatusDialog;
+    private Room editRoom = new();
+    private Room statusRoom = new();
+    private RoomStatus newStatusValue;
+
+    private List<DropdownOption<RoomType?>> roomTypeOptions = new();
+    private List<DropdownOption<RoomStatus?>> statusOptions = new();
+    private List<DropdownOption<LodgeType?>> lodgeTypeOptions = new();
+
+    private record DropdownOption<T>(T Value, string Text);
+
+    protected override async Task OnInitializedAsync()
+    {
+        allRooms = await AccommodationService.GetRoomsAsync();
+        filteredRooms = new(allRooms);
+
+        roomTypeOptions = Enum.GetValues<RoomType>().Select(v => new DropdownOption<RoomType?>(v, v.ToString())).Prepend(new(null, "All Types")).ToList();
+        statusOptions = Enum.GetValues<RoomStatus>().Select(v => new DropdownOption<RoomStatus?>(v, v.ToString())).Prepend(new(null, "All Statuses")).ToList();
+        lodgeTypeOptions = Enum.GetValues<LodgeType>().Select(v => new DropdownOption<LodgeType?>(v, v.ToString())).Prepend(new(null, "All Lodge Types")).ToList();
+    }
+
+    private void ApplyFilters()
+    {
+        var query = allRooms.AsEnumerable();
+        if (filterType.HasValue) query = query.Where(r => r.RoomType == filterType.Value);
+        if (filterStatus.HasValue) query = query.Where(r => r.Status == filterStatus.Value);
+        if (filterLodge.HasValue) query = query.Where(r => r.LodgeType == filterLodge.Value);
+        filteredRooms = query.ToList();
+    }
+
+    private void ClearFilters()
+    {
+        filterType = null;
+        filterStatus = null;
+        filterLodge = null;
+        filteredRooms = new(allRooms);
+    }
+
+    private BadgeStyle GetStatusBadge(RoomStatus status) => status switch
+    {
+        RoomStatus.Available => BadgeStyle.Success,
+        RoomStatus.Occupied => BadgeStyle.Danger,
+        RoomStatus.Maintenance => BadgeStyle.Warning,
+        RoomStatus.Cleaning => BadgeStyle.Info,
+        RoomStatus.OutOfOrder => BadgeStyle.Light,
+        _ => BadgeStyle.Light
+    };
+
+    private void OpenEditDialog(Room room)
+    {
+        editRoom = new Room
+        {
+            Id = room.Id,
+            RoomNumber = room.RoomNumber,
+            RoomType = room.RoomType,
+            LodgeType = room.LodgeType,
+            Capacity = room.Capacity,
+            BaseRate = room.BaseRate,
+            Status = room.Status,
+            Floor = room.Floor,
+            Description = room.Description
+        };
+        showEditDialog = true;
+    }
+
+    private async Task SaveRoom()
+    {
+        await AccommodationService.UpdateRoomAsync(editRoom);
+        allRooms = await AccommodationService.GetRoomsAsync();
+        ApplyFilters();
+        showEditDialog = false;
+        NotificationService.Notify(NotificationSeverity.Success, "Updated", $"Room {editRoom.RoomNumber} has been updated.");
+    }
+
+    private void OpenStatusDialog(Room room)
+    {
+        statusRoom = room;
+        newStatusValue = room.Status;
+        showStatusDialog = true;
+    }
+
+    private async Task UpdateStatus()
+    {
+        statusRoom.Status = newStatusValue;
+        await AccommodationService.UpdateRoomAsync(statusRoom);
+        allRooms = await AccommodationService.GetRoomsAsync();
+        ApplyFilters();
+        showStatusDialog = false;
+        NotificationService.Notify(NotificationSeverity.Success, "Status Updated", $"Room {statusRoom.RoomNumber} is now {newStatusValue}.");
+    }
+}

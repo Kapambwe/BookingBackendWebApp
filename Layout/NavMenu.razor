@@ -1,0 +1,83 @@
+@inject NavigationManager NavManager
+
+<RadzenPanelMenu>
+    <RadzenPanelMenuItem Text="Dashboard" Icon="dashboard" Expanded="false">
+        <RadzenPanelMenuItem Text="Overview" Path="/dashboard" />
+        <RadzenPanelMenuItem Text="Revenue" Path="/dashboard/revenue" />
+        <RadzenPanelMenuItem Text="Occupancy" Path="/dashboard/occupancy" />
+        <RadzenPanelMenuItem Text="Conservation" Path="/dashboard/conservation" />
+    </RadzenPanelMenuItem>
+    <RadzenPanelMenuItem Text="Reservations" Icon="book_online" Expanded="false">
+        <RadzenPanelMenuItem Text="Overview" Path="/reservations" />
+        <RadzenPanelMenuItem Text="New Reservation" Path="/reservations/new" />
+        <RadzenPanelMenuItem Text="Walk-In" Path="/reservations/walk-in" />
+        <RadzenPanelMenuItem Text="Group Booking" Path="/reservations/group" />
+        <RadzenPanelMenuItem Text="Cancellations" Path="/reservations/cancellations" />
+    </RadzenPanelMenuItem>
+    <RadzenPanelMenuItem Text="Packages" Icon="inventory_2" Expanded="false">
+        <RadzenPanelMenuItem Text="Overview" Path="/packages" />
+        <RadzenPanelMenuItem Text="Package Builder" Path="/packages/builder" />
+        <RadzenPanelMenuItem Text="Pricing" Path="/packages/pricing" />
+        <RadzenPanelMenuItem Text="Promotions" Path="/packages/promotions" />
+    </RadzenPanelMenuItem>
+    <RadzenPanelMenuItem Text="Accommodation" Icon="hotel" Expanded="false">
+        <RadzenPanelMenuItem Text="Overview" Path="/accommodation" />
+        <RadzenPanelMenuItem Text="Availability" Path="/accommodation/availability" />
+        <RadzenPanelMenuItem Text="Housekeeping" Path="/accommodation/housekeeping" />
+        <RadzenPanelMenuItem Text="Maintenance" Path="/accommodation/maintenance" />
+    </RadzenPanelMenuItem>
+    <RadzenPanelMenuItem Text="Park Entry" Icon="nature" Expanded="false">
+        <RadzenPanelMenuItem Text="Pricing" Path="/park-entry/pricing" />
+        <RadzenPanelMenuItem Text="Passes" Path="/park-entry/passes" />
+        <RadzenPanelMenuItem Text="Permits" Path="/park-entry/permits" />
+    </RadzenPanelMenuItem>
+    <RadzenPanelMenuItem Text="Activities" Icon="hiking" Expanded="false">
+        <RadzenPanelMenuItem Text="Overview" Path="/activities" />
+        <RadzenPanelMenuItem Text="Guides" Path="/activities/guides" />
+        <RadzenPanelMenuItem Text="Capacity" Path="/activities/capacity" />
+    </RadzenPanelMenuItem>
+    <RadzenPanelMenuItem Text="Tour Operators" Icon="travel_explore" Expanded="false">
+        <RadzenPanelMenuItem Text="Overview" Path="/tour-operators" />
+        <RadzenPanelMenuItem Text="Commissions" Path="/tour-operators/commissions" />
+        <RadzenPanelMenuItem Text="Bookings" Path="/tour-operators/bookings" />
+    </RadzenPanelMenuItem>
+    <RadzenPanelMenuItem Text="Transportation" Icon="directions_bus" Expanded="false">
+        <RadzenPanelMenuItem Text="Overview" Path="/transport" />
+        <RadzenPanelMenuItem Text="Scheduling" Path="/transport/scheduling" />
+        <RadzenPanelMenuItem Text="Maintenance" Path="/transport/maintenance" />
+    </RadzenPanelMenuItem>
+    <RadzenPanelMenuItem Text="Events" Icon="event" Expanded="false">
+        <RadzenPanelMenuItem Text="Venues" Path="/events/venues" />
+        <RadzenPanelMenuItem Text="Overview" Path="/events" />
+        <RadzenPanelMenuItem Text="Resources" Path="/events/resources" />
+    </RadzenPanelMenuItem>
+    <RadzenPanelMenuItem Text="POS" Icon="point_of_sale" Expanded="false">
+        <RadzenPanelMenuItem Text="Restaurant" Path="/pos/restaurant" />
+        <RadzenPanelMenuItem Text="Bar" Path="/pos/bar" />
+        <RadzenPanelMenuItem Text="Gift Shop" Path="/pos/gift-shop" />
+        <RadzenPanelMenuItem Text="End of Day" Path="/pos/end-of-day" />
+    </RadzenPanelMenuItem>
+    <RadzenPanelMenuItem Text="Conservation" Icon="park" Expanded="false">
+        <RadzenPanelMenuItem Text="Census" Path="/conservation/census" />
+        <RadzenPanelMenuItem Text="Species" Path="/conservation/species" />
+        <RadzenPanelMenuItem Text="Tracking" Path="/conservation/tracking" />
+        <RadzenPanelMenuItem Text="Incidents" Path="/conservation/incidents" />
+        <RadzenPanelMenuItem Text="Projects" Path="/conservation/projects" />
+    </RadzenPanelMenuItem>
+    <RadzenPanelMenuItem Text="Rangers" Icon="security" Expanded="false">
+        <RadzenPanelMenuItem Text="Overview" Path="/rangers" />
+        <RadzenPanelMenuItem Text="Patrols" Path="/rangers/patrols" />
+        <RadzenPanelMenuItem Text="Incidents" Path="/rangers/incidents" />
+    </RadzenPanelMenuItem>
+    <RadzenPanelMenuItem Text="Revenue Management" Icon="trending_up" Expanded="false">
+        <RadzenPanelMenuItem Text="Pricing" Path="/revenue-management/pricing" />
+        <RadzenPanelMenuItem Text="Forecasting" Path="/revenue-management/forecasting" />
+        <RadzenPanelMenuItem Text="Rates" Path="/revenue-management/rates" />
+    </RadzenPanelMenuItem>
+    <RadzenPanelMenuItem Text="Government Intelligence" Icon="insights" Expanded="false">
+        <RadzenPanelMenuItem Text="Overview" Path="/government-intelligence" />
+        <RadzenPanelMenuItem Text="Economic" Path="/government-intelligence/economic" />
+        <RadzenPanelMenuItem Text="Scorecards" Path="/government-intelligence/scorecards" />
+    </RadzenPanelMenuItem>
+    <RadzenPanelMenuItem Text="AI Agent" Icon="smart_toy" Path="/ai-agent" />
+</RadzenPanelMenu>

@@ -1,0 +1,23 @@
+@* Dialog for assigning a guide to an activity *@
+@inject DialogService DialogService
+
+<RadzenStack Gap="16">
+    <RadzenText TextStyle="TextStyle.H6">Select a guide for @ActivityName</RadzenText>
+    <RadzenListBox @bind-Value="@_selectedGuide" Data="@AvailableGuides" TextProperty="Name" ValueProperty="Id" Style="height:250px" />
+    <RadzenStack Horizontal="true" JustifyContent="JustifyContent.End" Gap="8">
+        <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Base" Click="@(() => DialogService.Close(null))" />
+        <RadzenButton Text="Assign" ButtonStyle="ButtonStyle.Primary" Click="@Submit" />
+    </RadzenStack>
+</RadzenStack>
+
+@code {
+    [Parameter] public List<Guide> AvailableGuides { get; set; } = new();
+    [Parameter] public string ActivityName { get; set; } = string.Empty;
+
+    private Guide? _selectedGuide;
+
+    private void Submit()
+    {
+        DialogService.Close(_selectedGuide);
+    }
+}

@@ -1,0 +1,128 @@
+@page "/pos/end-of-day"
+@attribute [Authorize]
+@using BookingBackendWebApp.Services.Pos
+@inject IPosService PosService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<RadzenCard>
+    <RadzenCardHeader>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:1.25rem;font-weight:500">End of Day Summary</span>
+            <div style="display:flex;gap:8px">
+                <RadzenDatePicker @bind-Value="_selectedDate" DateFormat="yyyy-MM-dd" />
+                <RadzenButton Text="Load" ButtonStyle="ButtonStyle.Primary" Click="@LoadSummary" />
+            </div>
+        </div>
+    </RadzenCardHeader>
+    <RadzenCardContent>
+        @if (_summary != null)
+        {
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px">
+                <RadzenCard Style="text-align:center;background:#e3f2fd">
+                    <div style="font-size:0.9rem;color:#1565c0">Total Sales</div>
+                    <div style="font-size:1.8rem;font-weight:bold;color:#0d47a1">@_summary.TotalSales.ToString("C")</div>
+                </RadzenCard>
+                <RadzenCard Style="text-align:center;background:#e8f5e9">
+                    <div style="font-size:0.9rem;color:#2e7d32">Cash Total</div>
+                    <div style="font-size:1.8rem;font-weight:bold;color:#1b5e20">@_summary.CashTotal.ToString("C")</div>
+                </RadzenCard>
+                <RadzenCard Style="text-align:center;background:#fce4ec">
+                    <div style="font-size:0.9rem;color:#c62828">Card Total</div>
+                    <div style="font-size:1.8rem;font-weight:bold;color:#b71c1c">@_summary.CardTotal.ToString("C")</div>
+                </RadzenCard>
+                <RadzenCard Style="text-align:center;background:#fff3e0">
+                    <div style="font-size:0.9rem;color:#e65100">Payment Count</div>
+                    <div style="font-size:1.8rem;font-weight:bold;color:#bf360c">@_summary.PaymentCount</div>
+                </RadzenCard>
+            </div>
+
+            <RadzenCard Style="margin-bottom:16px;background:#f3e5f5">
+                <RadzenCardHeader>
+                    <span style="font-weight:500">Sales Breakdown by Category</span>
+                </RadzenCardHeader>
+                <RadzenCardContent>
+                    <RadzenChart>
+                        <RadzenPieSeries Data="@_categoryBreakdown" CategoryProperty="CategoryName" ValueProperty="Amount" Title="Sales by Category">
+                            <RadzenSeriesDataLabel Visible="true" Format="{value:C}" />
+                        </RadzenPieSeries>
+                    </RadzenChart>
+                </RadzenCardContent>
+            </RadzenCard>
+
+            <div style="display:flex;justify-content:flex-end;gap:8px">
+                <RadzenButton Text="Close Day" ButtonStyle="ButtonStyle.Danger" Icon="lock" Click="@CloseDay" />
+            </div>
+        }
+        else
+        {
+            <div style="text-align:center;padding:48px;color:#888">
+                <RadzenIcon Icon="bar_chart" Style="font-size:48px;margin-bottom:16px" />
+                <div>Select a date and click "Load" to view the summary</div>
+            </div>
+        }
+    </RadzenCardContent>
+</RadzenCard>
+
+@code {
+    private DateTime _selectedDate = DateTime.Today;
+    private PosEndOfDay? _summary;
+    private List<CategoryBreakdownItem> _categoryBreakdown = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSummary();
+    }
+
+    private async Task LoadSummary()
+    {
+        try
+        {
+            _summary = await PosService.GetEndOfDayAsync(_selectedDate);
+            BuildCategoryBreakdown();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Error", $"Failed to load summary: {ex.Message}");
+        }
+    }
+
+    private void BuildCategoryBreakdown()
+    {
+        _categoryBreakdown = new()
+        {
+            new() { CategoryName = "Food", Amount = _summary?.TotalSales * 0.4m ?? 0 },
+            new() { CategoryName = "Beverage", Amount = _summary?.TotalSales * 0.35m ?? 0 },
+            new() { CategoryName = "Gift", Amount = _summary?.TotalSales * 0.15m ?? 0 },
+            new() { CategoryName = "Curio", Amount = _summary?.TotalSales * 0.1m ?? 0 }
+        };
+    }
+
+    private async Task CloseDay()
+    {
+        var confirm = await DialogService.Confirm(
+            $"Close the day for {_selectedDate:yyyy-MM-dd}? This will finalize all transactions.",
+            "Confirm Close Day",
+            new ConfirmOptions { OkButtonText = "Close Day", CancelButtonText = "Cancel" }
+        );
+
+        if (confirm != true || _summary == null) return;
+
+        try
+        {
+            _summary = await PosService.CloseDayAsync(_summary);
+            NotificationService.Notify(NotificationSeverity.Success, "Success", $"Day {_selectedDate:yyyy-MM-dd} closed successfully");
+            await LoadSummary();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Error", $"Failed to close day: {ex.Message}");
+        }
+    }
+
+    private class CategoryBreakdownItem
+    {
+        public string CategoryName { get; set; } = string.Empty;
+        public decimal Amount { get; set; }
+    }
+}

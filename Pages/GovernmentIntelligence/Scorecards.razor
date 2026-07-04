@@ -1,0 +1,144 @@
+@page "/government-intelligence/scorecards"
+@namespace BookingBackendWebApp.Pages.GovernmentIntelligence
+@using BookingBackendWebApp.Services.GovernmentIntelligence
+@inject IGovernmentIntelligenceService GovService
+@inject NotificationService Notification
+
+<RadzenStack Gap="16px">
+    <RadzenRow>
+        <RadzenColumn Size="6">
+            <RadzenText TextStyle="TextStyle.H5">Scorecards</RadzenText>
+        </RadzenColumn>
+        <RadzenColumn Size="6" Style="text-align:right">
+            <RadzenDropDown @bind-Value="_selectedEntity" Data="@_entities" Change="@OnEntityChanged" Placeholder="Filter by entity" />
+        </RadzenColumn>
+    </RadzenRow>
+
+    @if (_selectedScorecard != null)
+    {
+        <RadzenRow>
+            <RadzenColumn Size="3">
+                <RadzenCard>
+                    <RadzenStack Gap="12px" AlignItems="AlignItems.Center">
+                        <RadzenText TextStyle="TextStyle.H6">Business Health</RadzenText>
+                        <RadzenText TextStyle="TextStyle.H2">@($"{(int)_selectedScorecard.BusinessHealthScore}")</RadzenText>
+                        <RadzenProgressBar Value="@((int)_selectedScorecard.BusinessHealthScore)" Max="100"
+                                           Style="height:10px;width:100%"
+                                           Variant="@GetBarVariant(_selectedScorecard.BusinessHealthScore)" />
+                    </RadzenStack>
+                </RadzenCard>
+            </RadzenColumn>
+            <RadzenColumn Size="3">
+                <RadzenCard>
+                    <RadzenStack Gap="12px" AlignItems="AlignItems.Center">
+                        <RadzenText TextStyle="TextStyle.H6">Tourism Credit</RadzenText>
+                        <RadzenText TextStyle="TextStyle.H2">@($"{(int)_selectedScorecard.TourismCreditScore}")</RadzenText>
+                        <RadzenProgressBar Value="@((int)_selectedScorecard.TourismCreditScore)" Max="100"
+                                           Style="height:10px;width:100%"
+                                           Variant="@GetBarVariant(_selectedScorecard.TourismCreditScore)" />
+                    </RadzenStack>
+                </RadzenCard>
+            </RadzenColumn>
+            <RadzenColumn Size="3">
+                <RadzenCard>
+                    <RadzenStack Gap="12px" AlignItems="AlignItems.Center">
+                        <RadzenText TextStyle="TextStyle.H6">Sustainability</RadzenText>
+                        <RadzenText TextStyle="TextStyle.H2">@($"{(int)_selectedScorecard.SustainabilityScore}")</RadzenText>
+                        <RadzenProgressBar Value="@((int)_selectedScorecard.SustainabilityScore)" Max="100"
+                                           Style="height:10px;width:100%"
+                                           Variant="@GetBarVariant(_selectedScorecard.SustainabilityScore)" />
+                    </RadzenStack>
+                </RadzenCard>
+            </RadzenColumn>
+            <RadzenColumn Size="3">
+                <RadzenCard>
+                    <RadzenStack Gap="12px" AlignItems="AlignItems.Center">
+                        <RadzenText TextStyle="TextStyle.H6">Financing Readiness</RadzenText>
+                        <RadzenText TextStyle="TextStyle.H2">@($"{(int)_selectedScorecard.FinancingReadinessScore}")</RadzenText>
+                        <RadzenProgressBar Value="@((int)_selectedScorecard.FinancingReadinessScore)" Max="100"
+                                           Style="height:10px;width:100%"
+                                           Variant="@GetBarVariant(_selectedScorecard.FinancingReadinessScore)" />
+                    </RadzenStack>
+                </RadzenCard>
+            </RadzenColumn>
+        </RadzenRow>
+    }
+
+    <RadzenCard>
+        <RadzenStack Gap="12px">
+            <RadzenText TextStyle="TextStyle.H6">All Scorecards</RadzenText>
+            <RadzenDataGrid Data="@_scorecards" TItem="Scorecard" AllowFiltering="true" AllowSorting="true">
+                <Columns>
+                    <RadzenDataGridColumn TItem="Scorecard" Property="EntityName" Title="Entity" />
+                    <RadzenDataGridColumn TItem="Scorecard" Property="Period" Title="Period" />
+                    <RadzenDataGridColumn TItem="Scorecard" Property="BusinessHealthScore" Title="Business Health">
+                        <Template>
+                            @{
+                                var s = context as Scorecard;
+                                if (s != null) { <RadzenProgressBar Value="@((int)s.BusinessHealthScore)" Max="100" Style="height:6px" Variant="@GetBarVariant(s.BusinessHealthScore)" /> }
+                            }
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="Scorecard" Property="TourismCreditScore" Title="Tourism Credit">
+                        <Template>
+                            @{
+                                var s = context as Scorecard;
+                                if (s != null) { <RadzenProgressBar Value="@((int)s.TourismCreditScore)" Max="100" Style="height:6px" Variant="@GetBarVariant(s.TourismCreditScore)" /> }
+                            }
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="Scorecard" Property="SustainabilityScore" Title="Sustainability">
+                        <Template>
+                            @{
+                                var s = context as Scorecard;
+                                if (s != null) { <RadzenProgressBar Value="@((int)s.SustainabilityScore)" Max="100" Style="height:6px" Variant="@GetBarVariant(s.SustainabilityScore)" /> }
+                            }
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="Scorecard" Property="FinancingReadinessScore" Title="Financing Readiness">
+                        <Template>
+                            @{
+                                var s = context as Scorecard;
+                                if (s != null) { <RadzenProgressBar Value="@((int)s.FinancingReadinessScore)" Max="100" Style="height:6px" Variant="@GetBarVariant(s.FinancingReadinessScore)" /> }
+                            }
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenStack>
+    </RadzenCard>
+</RadzenStack>
+
+@code {
+    private List<Scorecard> _scorecards = new();
+    private Scorecard? _selectedScorecard;
+    private string _selectedEntity = "All";
+    private List<string> _entities = new() { "All" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _scorecards = await GovService.GetScorecardsAsync();
+        _entities = _scorecards.Select(s => s.EntityName).Distinct().ToList();
+        _entities.Insert(0, "All");
+        SelectScorecard();
+    }
+
+    private void OnEntityChanged()
+    {
+        SelectScorecard();
+    }
+
+    private void SelectScorecard()
+    {
+        _selectedScorecard = _selectedEntity == "All"
+            ? _scorecards.FirstOrDefault()
+            : _scorecards.FirstOrDefault(s => s.EntityName == _selectedEntity);
+    }
+
+    private string GetBarVariant(double score)
+    {
+        if (score >= 80) return "bg-success";
+        if (score >= 60) return "bg-warning";
+        return "bg-danger";
+    }
+}

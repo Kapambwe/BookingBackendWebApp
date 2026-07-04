@@ -1,0 +1,329 @@
+@page "/reservations"
+@attribute [Authorize(Policy = "BookingViewAll")]
+@using Microsoft.AspNetCore.Authorization
+@inject IBookingService BookingService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+@inject ISecurityService SecurityService
+@inject NavigationManager NavigationManager
+
+<RadzenCard>
+    <RadzenStack Gap="16">
+        <RadzenText Tag="H2" TextStyle="TextStyle.H3">Reservations Overview</RadzenText>
+        <RadzenRow Gap="16">
+            <RadzenColumn Size="3">
+                <RadzenCard Style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <RadzenStack Gap="4">
+                        <RadzenText TextStyle="TextStyle.Subtitle2">Total Bookings</RadzenText>
+                        <RadzenText TextStyle="TextStyle.H4">@_totalBookings</RadzenText>
+                    </RadzenStack>
+                </RadzenCard>
+            </RadzenColumn>
+            <RadzenColumn Size="3">
+                <RadzenCard Style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white;">
+                    <RadzenStack Gap="4">
+                        <RadzenText TextStyle="TextStyle.Subtitle2">Active Stays</RadzenText>
+                        <RadzenText TextStyle="TextStyle.H4">@_activeStays</RadzenText>
+                    </RadzenStack>
+                </RadzenCard>
+            </RadzenColumn>
+            <RadzenColumn Size="3">
+                <RadzenCard Style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white;">
+                    <RadzenStack Gap="4">
+                        <RadzenText TextStyle="TextStyle.Subtitle2">Check-ins Today</RadzenText>
+                        <RadzenText TextStyle="TextStyle.H4">@_checkInsToday</RadzenText>
+                    </RadzenStack>
+                </RadzenCard>
+            </RadzenColumn>
+            <RadzenColumn Size="3">
+                <RadzenCard Style="background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%); color: white;">
+                    <RadzenStack Gap="4">
+                        <RadzenText TextStyle="TextStyle.Subtitle2">Revenue (KES)</RadzenText>
+                        <RadzenText TextStyle="TextStyle.H4">@_totalRevenue.ToString("N0")</RadzenText>
+                    </RadzenStack>
+                </RadzenCard>
+            </RadzenColumn>
+        </RadzenRow>
+    </RadzenStack>
+</RadzenCard>
+
+<RadzenCard>
+    <RadzenStack Gap="12">
+        <RadzenRow Gap="8" AlignItems="AlignItems.Center">
+            <RadzenColumn Size="3">
+                <RadzenDropDown @bind-Value="@_statusFilter"
+                                Placeholder="All Statuses"
+                                Data="@_statusOptions"
+                                TextProperty="Text"
+                                ValueProperty="Value"
+                                Change="@OnFilterChanged" />
+            </RadzenColumn>
+            <RadzenColumn Size="3">
+                <RadzenDatePicker @bind-Value="@_dateFrom" Placeholder="From Date" Change="@OnFilterChanged" />
+            </RadzenColumn>
+            <RadzenColumn Size="3">
+                <RadzenDatePicker @bind-Value="@_dateTo" Placeholder="To Date" Change="@OnFilterChanged" />
+            </RadzenColumn>
+            <RadzenColumn Size="3">
+                <RadzenTextBox @bind-Value="@_searchText" Placeholder="Search guest, booking #..." Change="@OnFilterChanged" />
+            </RadzenColumn>
+        </RadzenRow>
+
+        <RadzenDataGrid @ref="@_grid"
+                        Data="@_filteredBookings"
+                        AllowPaging="true"
+                        PageSize="10"
+                        AllowSorting="true"
+                        RowSelect="@((Booking args) => OnViewBooking(args))">
+            <Columns>
+                <RadzenDataGridColumn TItem="Booking" Property="BookingNumber" Title="Booking #" Sortable="true" Width="140px" />
+                <RadzenDataGridColumn TItem="Booking" Property="GuestName" Title="Guest" Sortable="true" Width="180px" />
+                <RadzenDataGridColumn TItem="Booking" Property="BookingType" Title="Type" Sortable="true" Width="120px">
+                    <Template Context="b">
+                        @GetBookingTypeDisplay(b.BookingType)
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Booking" Property="Status" Title="Status" Sortable="true" Width="130px">
+                    <Template Context="b">
+                        @RenderStatusBadge(b.Status)
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Booking" Property="CheckInDate" Title="Check-In" Sortable="true" Width="120px">
+                    <Template Context="b">
+                        @b.CheckInDate.ToString("dd MMM yyyy")
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Booking" Property="CheckOutDate" Title="Check-Out" Sortable="true" Width="120px">
+                    <Template Context="b">
+                        @b.CheckOutDate.ToString("dd MMM yyyy")
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Booking" Property="TotalAmount" Title="Total" Sortable="true" Width="120px">
+                    <Template Context="b">
+                        @b.TotalAmount.ToString("N0")
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Booking" Property="PaidAmount" Title="Paid" Sortable="true" Width="120px">
+                    <Template Context="b">
+                        @b.PaidAmount.ToString("N0")
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Booking" Title="Actions" Width="260px">
+                    <Template Context="b">
+                        <RadzenStack Gap="4" Direction="FlexDirection.Row">
+                            <RadzenButton Text="View" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Primary"
+                                          Click="@(args => OnViewBooking(b))" />
+                            @if (_canCheckIn && b.Status == BookingStatus.Confirmed)
+                            {
+                                <RadzenButton Text="Check-In" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Success"
+                                              Click="@(args => OnCheckIn(b))" />
+                            }
+                            @if (_canCheckOut && b.Status == BookingStatus.CheckedIn)
+                            {
+                                <RadzenButton Text="Check-Out" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Info"
+                                              Click="@(args => OnCheckOut(b))" />
+                            }
+                            @if (_canCancel && (b.Status == BookingStatus.Pending || b.Status == BookingStatus.Confirmed))
+                            {
+                                <RadzenButton Text="Cancel" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Danger"
+                                              Click="@(args => OnCancelBooking(b))" />
+                            }
+                        </RadzenStack>
+                    </Template>
+                </RadzenDataGridColumn>
+            </Columns>
+        </RadzenDataGrid>
+    </RadzenStack>
+</RadzenCard>
+
+@code {
+    private RadzenDataGrid<Booking>? _grid;
+    private List<Booking> _allBookings = new();
+    private List<Booking> _filteredBookings = new();
+    private int _totalBookings;
+    private int _activeStays;
+    private int _checkInsToday;
+    private decimal _totalRevenue;
+    private bool _canCheckIn;
+    private bool _canCheckOut;
+    private bool _canCancel;
+
+    private string? _statusFilter;
+    private DateTime? _dateFrom;
+    private DateTime? _dateTo;
+    private string? _searchText;
+
+    private List<DropdownOption> _statusOptions = new()
+    {
+        new() { Text = "All Statuses", Value = null },
+        new() { Text = "Pending", Value = "Pending" },
+        new() { Text = "Confirmed", Value = "Confirmed" },
+        new() { Text = "Checked In", Value = "CheckedIn" },
+        new() { Text = "Checked Out", Value = "CheckedOut" },
+        new() { Text = "Cancelled", Value = "Cancelled" },
+        new() { Text = "No Show", Value = "NoShow" }
+    };
+
+    private class DropdownOption
+    {
+        public string? Text { get; set; }
+        public string? Value { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _canCheckIn = await SecurityService.HasPermissionAsync(BookingBackendPermissions.BookingEdit);
+        _canCheckOut = await SecurityService.HasPermissionAsync(BookingBackendPermissions.BookingEdit);
+        _canCancel = await SecurityService.HasPermissionAsync(BookingBackendPermissions.BookingCancel);
+        await LoadBookingsAsync();
+    }
+
+    private async Task LoadBookingsAsync()
+    {
+        _allBookings = await BookingService.GetBookingsAsync();
+        ApplyFilters();
+        CalculateKpis();
+    }
+
+    private void CalculateKpis()
+    {
+        _totalBookings = _allBookings.Count;
+        _activeStays = _allBookings.Count(b => b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.CheckedIn);
+        _checkInsToday = _allBookings.Count(b => b.CheckInDate.Date == DateTime.Today);
+        _totalRevenue = _allBookings.Where(b => b.Status != BookingStatus.Cancelled).Sum(b => b.TotalAmount);
+    }
+
+    private void ApplyFilters()
+    {
+        var query = _allBookings.AsEnumerable();
+
+        if (!string.IsNullOrEmpty(_statusFilter))
+        {
+            if (Enum.TryParse<BookingStatus>(_statusFilter, out var status))
+                query = query.Where(b => b.Status == status);
+        }
+
+        if (_dateFrom.HasValue)
+            query = query.Where(b => b.CheckInDate >= _dateFrom.Value);
+
+        if (_dateTo.HasValue)
+            query = query.Where(b => b.CheckOutDate <= _dateTo.Value);
+
+        if (!string.IsNullOrWhiteSpace(_searchText))
+        {
+            var search = _searchText.ToLower();
+            query = query.Where(b =>
+                b.BookingNumber.ToLower().Contains(search) ||
+                b.GuestName.ToLower().Contains(search) ||
+                b.GuestEmail.ToLower().Contains(search));
+        }
+
+        _filteredBookings = query.ToList();
+    }
+
+    private void OnFilterChanged()
+    {
+        ApplyFilters();
+    }
+
+    private void OnViewBooking(Booking booking)
+    {
+        NavigationManager.NavigateTo($"/reservations/{booking.Id}");
+    }
+
+    private async Task OnCheckIn(Booking booking)
+    {
+        var confirmed = await DialogService.Confirm($"Check in {booking.GuestName}?", "Confirm Check-In",
+            new ConfirmOptions { OkButtonText = "Check In", CancelButtonText = "Cancel" });
+        if (confirmed != true) return;
+
+        var success = await BookingService.CheckInAsync(booking.Id);
+        if (success)
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Success,
+                Summary = "Checked In",
+                Detail = $"{booking.GuestName} has been checked in.",
+                Duration = 4000
+            });
+            await LoadBookingsAsync();
+        }
+    }
+
+    private async Task OnCheckOut(Booking booking)
+    {
+        var confirmed = await DialogService.Confirm($"Check out {booking.GuestName}?", "Confirm Check-Out",
+            new ConfirmOptions { OkButtonText = "Check Out", CancelButtonText = "Cancel" });
+        if (confirmed != true) return;
+
+        var success = await BookingService.CheckOutAsync(booking.Id);
+        if (success)
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Success,
+                Summary = "Checked Out",
+                Detail = $"{booking.GuestName} has been checked out.",
+                Duration = 4000
+            });
+            await LoadBookingsAsync();
+        }
+    }
+
+    private async Task OnCancelBooking(Booking booking)
+    {
+        var confirmed = await DialogService.Confirm($"Cancel booking {booking.BookingNumber} for {booking.GuestName}?",
+            "Confirm Cancellation",
+            new ConfirmOptions { OkButtonText = "Cancel Booking", CancelButtonText = "Go Back" });
+        if (confirmed != true) return;
+
+        var success = await BookingService.CancelBookingAsync(booking.Id);
+        if (success)
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Warning,
+                Summary = "Cancelled",
+                Detail = $"Booking {booking.BookingNumber} has been cancelled.",
+                Duration = 4000
+            });
+            await LoadBookingsAsync();
+        }
+    }
+
+    private static string GetBookingTypeDisplay(BookingType type) => type switch
+    {
+        BookingType.Room => "Room",
+        BookingType.Chalet => "Chalet",
+        BookingType.Tent => "Tent",
+        BookingType.Campsite => "Campsite",
+        BookingType.GameDrive => "Game Drive",
+        BookingType.BoatCruise => "Boat Cruise",
+        BookingType.FishingPermit => "Fishing Permit",
+        BookingType.HikingPermit => "Hiking Permit",
+        BookingType.ParkEntry => "Park Entry",
+        BookingType.PhotographyPermit => "Photo Permit",
+        BookingType.BirdWatching => "Bird Watching",
+        BookingType.SafariPackage => "Safari Package",
+        _ => type.ToString()
+    };
+
+    private static RenderFragment RenderStatusBadge(BookingStatus status) => builder =>
+    {
+        var (text, style) = status switch
+        {
+            BookingStatus.Confirmed => ("Confirmed", "badge badge-success"),
+            BookingStatus.Pending => ("Pending", "badge badge-warning"),
+            BookingStatus.Cancelled => ("Cancelled", "badge badge-danger"),
+            BookingStatus.CheckedIn => ("Checked In", "badge badge-info"),
+            BookingStatus.CheckedOut => ("Checked Out", "badge badge-secondary"),
+            BookingStatus.NoShow => ("No Show", "badge badge-dark"),
+            _ => (status.ToString(), "badge badge-light")
+        };
+        builder.OpenElement(0, "span");
+        builder.AddAttribute(1, "class", style);
+        builder.AddContent(2, text);
+        builder.CloseElement();
+    };
+}

@@ -1,0 +1,290 @@
+is_global = true
+build_property.EnableAotAnalyzer = 
+build_property.EnableSingleFileAnalyzer = 
+build_property.EnableTrimAnalyzer = false
+build_property.IncludeAllContentForSelfExtract = 
+build_property.VerifyReferenceTrimCompatibility = 
+build_property.VerifyReferenceAotCompatibility = 
+build_property.TargetFramework = net10.0
+build_property.TargetFrameworkIdentifier = .NETCoreApp
+build_property.TargetFrameworkVersion = v10.0
+build_property.TargetPlatformMinVersion = 
+build_property.UsingMicrosoftNETSdkWeb = 
+build_property.ProjectTypeGuids = 
+build_property.InvariantGlobalization = false
+build_property.PlatformNeutralAssembly = 
+build_property.EnforceExtendedAnalyzerRules = 
+build_property.EntryPointFilePath = 
+build_property._SupportedPlatformList = browser
+build_property.RootNamespace = BookingBackendWebApp
+build_property.RootNamespace = BookingBackendWebApp
+build_property.ProjectDir = C:\Dev\Accounting-As-A-Service\src\WebApps\BookingBackendWebApp\
+build_property.EnableComHosting = 
+build_property.EnableGeneratedComInterfaceComImportInterop = false
+build_property.RazorLangVersion = 10.0
+build_property.SupportLocalizedComponentNames = 
+build_property.GenerateRazorMetadataSourceChecksumAttributes = 
+build_property.MSBuildProjectDirectory = C:\Dev\Accounting-As-A-Service\src\WebApps\BookingBackendWebApp
+build_property._RazorSourceGeneratorDebug = 
+build_property.EffectiveAnalysisLevelStyle = 10.0
+build_property.EnableCodeStyleSeverity = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/App.razor]
+build_metadata.AdditionalFiles.TargetPath = QXBwLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Layout/LoginDisplay.razor]
+build_metadata.AdditionalFiles.TargetPath = TGF5b3V0XExvZ2luRGlzcGxheS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Layout/NavMenu.razor]
+build_metadata.AdditionalFiles.TargetPath = TGF5b3V0XE5hdk1lbnUucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Layout/_Imports.razor]
+build_metadata.AdditionalFiles.TargetPath = TGF5b3V0XF9JbXBvcnRzLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Accommodation/AvailabilityCalendar.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWNjb21tb2RhdGlvblxBdmFpbGFiaWxpdHlDYWxlbmRhci5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Accommodation/Housekeeping.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWNjb21tb2RhdGlvblxIb3VzZWtlZXBpbmcucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Accommodation/Maintenance.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWNjb21tb2RhdGlvblxNYWludGVuYW5jZS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Accommodation/RoomInventory.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWNjb21tb2RhdGlvblxSb29tSW52ZW50b3J5LnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Activities/ActivitySchedule.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWN0aXZpdGllc1xBY3Rpdml0eVNjaGVkdWxlLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Activities/AddGuideDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWN0aXZpdGllc1xBZGRHdWlkZURpYWxvZy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Activities/AssignGuideDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWN0aXZpdGllc1xBc3NpZ25HdWlkZURpYWxvZy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Activities/BulkOverrideDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWN0aXZpdGllc1xCdWxrT3ZlcnJpZGVEaWFsb2cucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Activities/CapacityManagement.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWN0aXZpdGllc1xDYXBhY2l0eU1hbmFnZW1lbnQucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Activities/EditCapacityDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWN0aXZpdGllc1xFZGl0Q2FwYWNpdHlEaWFsb2cucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Activities/GuideAssignment.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWN0aXZpdGllc1xHdWlkZUFzc2lnbm1lbnQucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Activities/NewScheduleDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWN0aXZpdGllc1xOZXdTY2hlZHVsZURpYWxvZy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/AiAgent/AiAgent.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWlBZ2VudFxBaUFnZW50LnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Conservation/AnimalTracking.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQ29uc2VydmF0aW9uXEFuaW1hbFRyYWNraW5nLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Conservation/ConservationProjects.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQ29uc2VydmF0aW9uXENvbnNlcnZhdGlvblByb2plY3RzLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Conservation/Incidents.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQ29uc2VydmF0aW9uXEluY2lkZW50cy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Conservation/SpeciesMonitoring.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQ29uc2VydmF0aW9uXFNwZWNpZXNNb25pdG9yaW5nLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Conservation/WildlifeCensus.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQ29uc2VydmF0aW9uXFdpbGRsaWZlQ2Vuc3VzLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Dashboard/ConservationDashboard.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRGFzaGJvYXJkXENvbnNlcnZhdGlvbkRhc2hib2FyZC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Dashboard/OccupancyAnalytics.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRGFzaGJvYXJkXE9jY3VwYW5jeUFuYWx5dGljcy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Dashboard/OperationsDashboard.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRGFzaGJvYXJkXE9wZXJhdGlvbnNEYXNoYm9hcmQucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Dashboard/RevenueAnalytics.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRGFzaGJvYXJkXFJldmVudWVBbmFseXRpY3MucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Events/EventManagement.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRXZlbnRzXEV2ZW50TWFuYWdlbWVudC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Events/ResourceSchedule.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRXZlbnRzXFJlc291cmNlU2NoZWR1bGUucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Events/VenueBooking.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRXZlbnRzXFZlbnVlQm9va2luZy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/GovernmentIntelligence/EconomicImpact.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcR292ZXJubWVudEludGVsbGlnZW5jZVxFY29ub21pY0ltcGFjdC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/GovernmentIntelligence/NationalDashboard.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcR292ZXJubWVudEludGVsbGlnZW5jZVxOYXRpb25hbERhc2hib2FyZC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/GovernmentIntelligence/Scorecards.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcR292ZXJubWVudEludGVsbGlnZW5jZVxTY29yZWNhcmRzLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Packages/DynamicPricing.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUGFja2FnZXNcRHluYW1pY1ByaWNpbmcucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Packages/PackageBuilder.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUGFja2FnZXNcUGFja2FnZUJ1aWxkZXIucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Packages/PackageList.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUGFja2FnZXNcUGFja2FnZUxpc3QucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Packages/Promotions.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUGFja2FnZXNcUHJvbW90aW9ucy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/ParkEntry/IssuePassDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUGFya0VudHJ5XElzc3VlUGFzc0RpYWxvZy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/ParkEntry/IssuePermitDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUGFya0VudHJ5XElzc3VlUGVybWl0RGlhbG9nLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/ParkEntry/PassManagement.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUGFya0VudHJ5XFBhc3NNYW5hZ2VtZW50LnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/ParkEntry/Permits.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUGFya0VudHJ5XFBlcm1pdHMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/ParkEntry/PricingTiers.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUGFya0VudHJ5XFByaWNpbmdUaWVycy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/POS/BarPos.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUE9TXEJhclBvcy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/POS/EndOfDaySummary.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUE9TXEVuZE9mRGF5U3VtbWFyeS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/POS/GiftShopPos.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUE9TXEdpZnRTaG9wUG9zLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/POS/RestaurantPos.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUE9TXFJlc3RhdXJhbnRQb3MucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Rangers/Deployment.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUmFuZ2Vyc1xEZXBsb3ltZW50LnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Rangers/IncidentReporting.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUmFuZ2Vyc1xJbmNpZGVudFJlcG9ydGluZy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Rangers/PatrolScheduling.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUmFuZ2Vyc1xQYXRyb2xTY2hlZHVsaW5nLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Reservations/AllBookings.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUmVzZXJ2YXRpb25zXEFsbEJvb2tpbmdzLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Reservations/BookingDetail.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUmVzZXJ2YXRpb25zXEJvb2tpbmdEZXRhaWwucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Reservations/Cancellations.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUmVzZXJ2YXRpb25zXENhbmNlbGxhdGlvbnMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Reservations/GroupBooking.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUmVzZXJ2YXRpb25zXEdyb3VwQm9va2luZy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Reservations/NewBooking.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUmVzZXJ2YXRpb25zXE5ld0Jvb2tpbmcucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Reservations/WalkInBooking.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUmVzZXJ2YXRpb25zXFdhbGtJbkJvb2tpbmcucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/RevenueManagement/AiPricingEngine.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUmV2ZW51ZU1hbmFnZW1lbnRcQWlQcmljaW5nRW5naW5lLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/RevenueManagement/Forecasting.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUmV2ZW51ZU1hbmFnZW1lbnRcRm9yZWNhc3RpbmcucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/RevenueManagement/RateCalendar.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUmV2ZW51ZU1hbmFnZW1lbnRcUmF0ZUNhbGVuZGFyLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/TourOperators/CommissionConfig.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVG91ck9wZXJhdG9yc1xDb21taXNzaW9uQ29uZmlnLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/TourOperators/OperatorBookings.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVG91ck9wZXJhdG9yc1xPcGVyYXRvckJvb2tpbmdzLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/TourOperators/OperatorDashboard.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVG91ck9wZXJhdG9yc1xPcGVyYXRvckRhc2hib2FyZC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Transport/FleetOverview.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVHJhbnNwb3J0XEZsZWV0T3ZlcnZpZXcucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Transport/FuelAndMaintenance.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVHJhbnNwb3J0XEZ1ZWxBbmRNYWludGVuYW5jZS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Pages/Transport/Scheduling.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVHJhbnNwb3J0XFNjaGVkdWxpbmcucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/_Imports.razor]
+build_metadata.AdditionalFiles.TargetPath = X0ltcG9ydHMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Dev/Accounting-As-A-Service/src/WebApps/BookingBackendWebApp/Layout/MainLayout.razor]
+build_metadata.AdditionalFiles.TargetPath = TGF5b3V0XE1haW5MYXlvdXQucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = b-c4bra08dkm

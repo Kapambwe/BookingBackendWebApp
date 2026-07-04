@@ -1,0 +1,225 @@
+@page "/accommodation/maintenance"
+@namespace BookingBackendWebApp.Pages.Accommodation
+@inject IAccommodationService AccommodationService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<RadzenCard>
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;">Maintenance Work Orders</h3>
+        <RadzenButton Text="Create Work Order" ButtonStyle="ButtonStyle.Primary" Icon="add" Click="@OpenCreateDialog" />
+    </div>
+    <div style="display:flex;gap:12px;margin-top:12px;align-items:end;flex-wrap:wrap;">
+        <div>
+            <RadzenLabel Text="Priority" Component="filterPriority" />
+            <RadzenDropDown @bind-Value="@filterPriority" Data="@priorityOptions" Placeholder="All Priorities" Id="filterPriority" Change="@ApplyFilters" />
+        </div>
+        <div>
+            <RadzenLabel Text="Status" Component="filterStatus" />
+            <RadzenDropDown @bind-Value="@filterStatus" Data="@statusFilterOptions" Placeholder="All Statuses" Id="filterStatus" Change="@ApplyFilters" />
+        </div>
+        <RadzenButton Text="Clear" ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Small" Click="@ClearFilters" />
+    </div>
+</RadzenCard>
+
+<RadzenCard>
+    <RadzenDataGrid TItem="WorkOrderViewModel" Data="@filteredRecords" AllowPaging="true" PageSize="10" AllowSorting="true">
+        <Columns>
+            <RadzenDataGridColumn TItem="WorkOrderViewModel" Title="Room" Sortable="true" SortProperty="RoomNumber" Width="100px">
+                <Template Context="w"><strong>@w.RoomNumber</strong></Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="WorkOrderViewModel" Property="Description" Title="Description" Sortable="false" Width="280px" />
+            <RadzenDataGridColumn TItem="WorkOrderViewModel" Title="Priority" Sortable="true" SortProperty="Priority" Width="100px">
+                <Template Context="w">
+                    <RadzenBadge Text="@w.Priority.ToString()" BadgeStyle="@GetPriorityBadge(w.Priority)" />
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="WorkOrderViewModel" Title="Status" Sortable="true" SortProperty="Status" Width="120px">
+                <Template Context="w">
+                    <RadzenBadge Text="@w.Status" BadgeStyle="@GetStatusBadge(w.Status)" />
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="WorkOrderViewModel" Title="Cost" Sortable="true" SortProperty="Cost" Width="120px">
+                <Template Context="w">@w.Cost.ToString("N0") KES</Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="WorkOrderViewModel" Title="Date Reported" Sortable="true" SortProperty="CreatedAt" Width="140px">
+                <Template Context="w">@w.CreatedAt.ToString("dd MMM yyyy")</Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="WorkOrderViewModel" Title="Actions" Width="120px">
+                <Template Context="w">
+                    @if (w.Status != "Resolved" && w.Status != "Closed")
+                    {
+                        <RadzenButton ButtonStyle="ButtonStyle.Success" Size="ButtonSize.Small" Text="Resolve" Icon="check" Click="@(() => ResolveWorkOrder(w))" />
+                    }
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+</RadzenCard>
+
+@if (showCreateDialog)
+{
+    <RadzenDialog>
+        <RadzenCard Style="min-width:450px;">
+            <RadzenContentContainer>
+                <h4>Create Work Order</h4>
+
+                <RadzenLabel Text="Room" Component="woRoom" />
+                <RadzenDropDown @bind-Value="@newRecord.RoomId" Data="@rooms" TextProperty="RoomNumber" ValueProperty="Id" Id="woRoom" />
+
+                <RadzenLabel Text="Description" Component="woDesc" />
+                <RadzenTextArea @bind-Value="@newRecord.Description" Id="woDesc" Rows="3" Style="width:100%;" Placeholder="Describe the issue..." />
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div>
+                        <RadzenLabel Text="Priority" Component="woPriority" />
+                        <RadzenDropDown @bind-Value="@newRecord.Priority" Data="@priorities" Id="woPriority" />
+                    </div>
+                    <div>
+                        <RadzenLabel Text="Estimated Cost" Component="woCost" />
+                        <RadzenNumeric @bind-Value="@newRecord.Cost" Id="woCost" Min="0" Step="500" />
+                    </div>
+                </div>
+
+                <div style="margin-top:16px;display:flex;gap:8px;">
+                    <RadzenButton Text="Create" ButtonStyle="ButtonStyle.Primary" Click="@CreateWorkOrder" />
+                    <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Secondary" Click="@(() => showCreateDialog = false)" />
+                </div>
+            </RadzenContentContainer>
+        </RadzenCard>
+    </RadzenDialog>
+}
+
+@code {
+    private class WorkOrderViewModel
+    {
+        public int Id { get; set; }
+        public string RoomNumber { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public MaintenancePriority Priority { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public decimal Cost { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+
+    private List<WorkOrderViewModel> allRecords = new();
+    private List<WorkOrderViewModel> filteredRecords = new();
+    private List<Room> rooms = new();
+
+    private MaintenancePriority? filterPriority;
+    private string? filterStatus;
+
+    private bool showCreateDialog;
+    private MaintenanceRecord newRecord = new()
+    {
+        Status = "Pending",
+        CreatedAt = DateTime.Now
+    };
+
+    private MaintenancePriority[] priorities = Enum.GetValues<MaintenancePriority>();
+    private List<DropdownOption<MaintenancePriority?>> priorityOptions = new();
+    private List<DropdownOption<string?>> statusFilterOptions = new();
+
+    private record DropdownOption<T>(T Value, string Text);
+
+    protected override async Task OnInitializedAsync()
+    {
+        rooms = await AccommodationService.GetRoomsAsync();
+        priorityOptions = Enum.GetValues<MaintenancePriority>()
+            .Select(v => new DropdownOption<MaintenancePriority?>(v, v.ToString()))
+            .Prepend(new(null, "All Priorities"))
+            .ToList();
+        statusFilterOptions = new[]
+        {
+            new DropdownOption<string?>(null, "All Statuses"),
+            new DropdownOption<string?>("Pending", "Pending"),
+            new DropdownOption<string?>("InProgress", "In Progress"),
+            new DropdownOption<string?>("Resolved", "Resolved"),
+            new DropdownOption<string?>("Closed", "Closed"),
+        }.ToList();
+        await LoadRecords();
+    }
+
+    private async Task LoadRecords()
+    {
+        var records = await AccommodationService.GetMaintenanceRecordsAsync();
+        allRecords = records.Select(r => new WorkOrderViewModel
+        {
+            Id = r.Id,
+            RoomNumber = rooms.FirstOrDefault(room => room.Id == r.RoomId)?.RoomNumber ?? $"Room #{r.RoomId}",
+            Description = r.Description,
+            Priority = r.Priority,
+            Status = r.Status,
+            Cost = r.Cost,
+            CreatedAt = r.CreatedAt
+        }).ToList();
+        ApplyFilters();
+    }
+
+    private void ApplyFilters()
+    {
+        var query = allRecords.AsEnumerable();
+        if (filterPriority.HasValue) query = query.Where(r => r.Priority == filterPriority.Value);
+        if (!string.IsNullOrEmpty(filterStatus)) query = query.Where(r => r.Status == filterStatus);
+        filteredRecords = query.ToList();
+    }
+
+    private void ClearFilters()
+    {
+        filterPriority = null;
+        filterStatus = null;
+        filteredRecords = new(allRecords);
+    }
+
+    private BadgeStyle GetPriorityBadge(MaintenancePriority priority) => priority switch
+    {
+        MaintenancePriority.Low => BadgeStyle.Secondary,
+        MaintenancePriority.Medium => BadgeStyle.Info,
+        MaintenancePriority.High => BadgeStyle.Warning,
+        MaintenancePriority.Critical => BadgeStyle.Danger,
+        _ => BadgeStyle.Light
+    };
+
+    private BadgeStyle GetStatusBadge(string status) => status switch
+    {
+        "Pending" => BadgeStyle.Warning,
+        "InProgress" => BadgeStyle.Info,
+        "Resolved" => BadgeStyle.Success,
+        "Closed" => BadgeStyle.Light,
+        _ => BadgeStyle.Light
+    };
+
+    private void OpenCreateDialog()
+    {
+        newRecord = new MaintenanceRecord
+        {
+            Status = "Pending",
+            CreatedAt = DateTime.Now,
+            Cost = 0
+        };
+        showCreateDialog = true;
+    }
+
+    private async Task CreateWorkOrder()
+    {
+        if (newRecord.RoomId <= 0 || string.IsNullOrWhiteSpace(newRecord.Description)) return;
+        await AccommodationService.CreateMaintenanceRecordAsync(newRecord);
+        showCreateDialog = false;
+        await LoadRecords();
+        NotificationService.Notify(NotificationSeverity.Success, "Created", "Maintenance work order has been created.");
+    }
+
+    private async Task ResolveWorkOrder(WorkOrderViewModel wm)
+    {
+        var confirmed = await DialogService.Confirm(
+            $"Resolve work order for room {wm.RoomNumber}?",
+            "Confirm",
+            new ConfirmOptions { OkButtonText = "Resolve" });
+        if (confirmed == true)
+        {
+            await AccommodationService.ResolveMaintenanceRecordAsync(wm.Id);
+            await LoadRecords();
+            NotificationService.Notify(NotificationSeverity.Success, "Resolved", $"Work order for room {wm.RoomNumber} has been resolved.");
+        }
+    }
+}

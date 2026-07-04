@@ -1,0 +1,111 @@
+@page "/park-entry/passes"
+@using BookingBackendWebApp.Services.ParkEntry
+@inject IParkEntryService ParkEntryService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<RadzenStack Gap="24">
+    <RadzenCard>
+        <RadzenStack Gap="16">
+            <RadzenStack Horizontal="true" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+                <RadzenText TextStyle="TextStyle.H5">Park Pass Management</RadzenText>
+                <RadzenButton Text="Issue New Pass" ButtonType="ButtonType.Button"
+                    ButtonStyle="ButtonStyle.Primary" Icon="add" Click="@OpenIssueDialog" />
+            </RadzenStack>
+
+            <RadzenStack Horizontal="true" Gap="12" AlignItems="AlignItems.Center">
+                <RadzenText>Filter by Pass Type:</RadzenText>
+                <RadzenDropDown @bind-Value="@_selectedPassType" Data="@_passTypes"
+                    Change="@OnPassTypeFilterChanged" Placeholder="All Pass Types" Style="width: 200px" />
+            </RadzenStack>
+
+            <RadzenDataGrid @ref="_grid" Data="@_filteredPasses" TItem="ParkPass"
+                AllowPaging="true" AllowSorting="true" PageSize="10">
+                <Columns>
+                    <RadzenDataGridColumn TItem="ParkPass" Property="PassNumber" Title="Pass Number" Sortable="true" />
+                    <RadzenDataGridColumn TItem="ParkPass" Property="VisitorName" Title="Visitor Name" Sortable="true" />
+                    <RadzenDataGridColumn TItem="ParkPass" Property="PassType" Title="Pass Type" Sortable="true" />
+                    <RadzenDataGridColumn TItem="ParkPass" Property="IssueDate" Title="Issue Date" Sortable="true">
+                        <Template Context="item">
+                            @item.IssueDate.ToShortDateString()
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="ParkPass" Property="ExpiryDate" Title="Expiry Date" Sortable="true">
+                        <Template Context="item">
+                            @item.ExpiryDate.ToShortDateString()
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="ParkPass" Property="Fee" Title="Fee" Sortable="true">
+                        <Template Context="item">
+                            @item.Fee.ToString("C2")
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="ParkPass" Title="Status">
+                        <Template Context="item">
+                            @if (item.ExpiryDate >= DateTime.Today)
+                            {
+                                <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="Active" />
+                            }
+                            else
+                            {
+                                <RadzenBadge BadgeStyle="BadgeStyle.Danger" Text="Expired" />
+                            }
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenStack>
+    </RadzenCard>
+</RadzenStack>
+
+@code {
+    private RadzenDataGrid<ParkPass>? _grid;
+    private List<ParkPass> _passes = new();
+    private List<ParkPass> _filteredPasses = new();
+    private PassType? _selectedPassType;
+
+    private List<PassType> _passTypes = new()
+    {
+        PassType.Daily,
+        PassType.Weekly,
+        PassType.Annual
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _passes = await ParkEntryService.GetParkPassesAsync();
+        ApplyFilter();
+    }
+
+    private void ApplyFilter()
+    {
+        _filteredPasses = _selectedPassType.HasValue
+            ? _passes.Where(p => p.PassType == _selectedPassType.Value).ToList()
+            : _passes;
+    }
+
+    private void OnPassTypeFilterChanged(object? value)
+    {
+        _selectedPassType = value as PassType?;
+        ApplyFilter();
+    }
+
+    private async Task OpenIssueDialog()
+    {
+        var pass = await DialogService.OpenAsync<IssuePassDialog>("Issue New Pass",
+            new Dictionary<string, object>(),
+            new DialogOptions { Width = "500px", Resizable = true, Draggable = true });
+
+        if (pass is ParkPass newPass)
+        {
+            await ParkEntryService.IssueParkPassAsync(newPass);
+            await LoadData();
+            NotificationService.Notify(NotificationSeverity.Success, "Pass issued successfully");
+        }
+    }
+}

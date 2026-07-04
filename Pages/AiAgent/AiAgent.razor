@@ -1,0 +1,130 @@
+@page "/ai-agent"
+@namespace BookingBackendWebApp.Pages.AiAgent
+@using BookingBackendWebApp.Services.AiAgent
+@inject IAiAgentService AiService
+@inject NotificationService Notification
+
+<RadzenStack Gap="16px" Style="height:calc(100vh - 120px)">
+    <RadzenRow>
+        <RadzenColumn Size="12">
+            <RadzenText TextStyle="TextStyle.H5">AI Agent</RadzenText>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenCard Style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+        <div style="flex:1;overflow-y:auto;padding:16px" @ref="_messageContainer">
+            <RadzenStack Gap="12px">
+                @foreach (var msg in _messages)
+                {
+                    if (msg.IsUser)
+                    {
+                        <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+                            <div style="max-width:70%;background-color:#e3f2fd;border-radius:12px 12px 4px 12px;padding:10px 14px">
+                                <RadzenText TextStyle="TextStyle.Body1">@msg.Text</RadzenText>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div style="display:flex;justify-content:flex-start;margin-bottom:8px">
+                            <div style="display:flex;align-items:flex-start;gap:8px;max-width:70%">
+                                <RadzenIcon Icon="smart_toy" Style="font-size:24px;margin-top:4px" />
+                                <div style="background-color:#f5f5f5;border-radius:12px 12px 12px 4px;padding:10px 14px">
+                                    <RadzenText TextStyle="TextStyle.Body1">@msg.Text</RadzenText>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+            </RadzenStack>
+        </div>
+
+        @if (_messages.Count <= 1)
+        {
+            <div style="padding:12px 16px;border-top:1px solid #e0e0e0">
+                <RadzenText TextStyle="TextStyle.Subtitle2">Try asking:</RadzenText>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
+                    @foreach (var q in _sampleQuestions)
+                    {
+                        <RadzenButton Text="@q" ButtonStyle="ButtonStyle.Base" Size="ButtonSize.Small"
+                                      Style="border:1px solid #ccc;border-radius:16px"
+                                      Click="@(() => AskQuestion(q))" />
+                    }
+                </div>
+            </div>
+        }
+    </RadzenCard>
+
+    <div style="display:flex;gap:8px">
+        <RadzenTextBox @bind-Value="_query" Placeholder="Ask the AI Agent..." Style="flex:1" />
+        <RadzenButton Text="Send" Icon="send" ButtonStyle="ButtonStyle.Primary" Click="@SendMessage" />
+    </div>
+</RadzenStack>
+
+@code {
+    private List<ChatMessage> _messages = new();
+    private string _query = string.Empty;
+    private ElementReference _messageContainer;
+
+    private List<string> _sampleQuestions = new()
+    {
+        "Which package generated the most revenue?",
+        "Forecast visitors",
+        "Which rooms have lowest occupancy?",
+        "Which tour operators bring highest value?"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var history = await AiService.GetHistoryAsync();
+        foreach (var h in history)
+        {
+            _messages.Add(new ChatMessage { Text = h.Answer, IsUser = false, Timestamp = DateTime.Now });
+        }
+
+        if (_messages.Count == 0)
+        {
+            _messages.Add(new ChatMessage
+            {
+                Text = "Hello! I'm your AI tourism assistant. Ask me about revenue, occupancy, forecasts, packages, or any park operations.",
+                IsUser = false,
+                Timestamp = DateTime.Now
+            });
+        }
+    }
+
+    private async Task AskQuestion(string question)
+    {
+        _query = question;
+        await SendMessage();
+    }
+
+    private async Task SendMessage()
+    {
+        if (string.IsNullOrWhiteSpace(_query)) return;
+
+        var userMsg = _query.Trim();
+        _messages.Add(new ChatMessage { Text = userMsg, IsUser = true, Timestamp = DateTime.Now });
+        _query = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var response = await AiService.AskAsync(new AiQueryRequest { Query = userMsg });
+            _messages.Add(new ChatMessage { Text = response.Answer, IsUser = false, Timestamp = DateTime.Now });
+        }
+        catch
+        {
+            _messages.Add(new ChatMessage { Text = "Sorry, I encountered an error processing your request.", IsUser = false, Timestamp = DateTime.Now });
+        }
+
+        StateHasChanged();
+    }
+
+    private class ChatMessage
+    {
+        public string Text { get; set; } = string.Empty;
+        public bool IsUser { get; set; }
+        public DateTime Timestamp { get; set; }
+    }
+}

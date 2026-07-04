@@ -1,0 +1,152 @@
+@page "/packages/pricing"
+@namespace BookingBackendWebApp.Pages.Packages
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<RadzenCard>
+    <h3>Dynamic Pricing Rules</h3>
+    <RadzenButton Text="Add Rule" ButtonStyle="ButtonStyle.Primary" Icon="add" Click="@OpenAddDialog" Style="margin-bottom:12px;" />
+</RadzenCard>
+
+<RadzenCard>
+    <RadzenDataGrid TItem="PricingRule" Data="@rules" AllowPaging="true" PageSize="10" AllowSorting="true">
+        <Columns>
+            <RadzenDataGridColumn TItem="PricingRule" Property="Name" Title="Rule Name" Sortable="true" />
+            <RadzenDataGridColumn TItem="PricingRule" Property="Condition" Title="Condition" Sortable="true" Width="250px" />
+            <RadzenDataGridColumn TItem="PricingRule" Title="Adjustment" Sortable="true" SortProperty="AdjustmentType" Width="140px">
+                <Template Context="r">
+                    <RadzenBadge Text="@r.AdjustmentType.ToString()" BadgeStyle="@(r.AdjustmentType == AdjustmentType.Percentage ? BadgeStyle.Info : BadgeStyle.Warning)" />
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="PricingRule" Title="Value" Sortable="true" SortProperty="Value" Width="100px">
+                <Template Context="r">
+                    @(r.AdjustmentType == AdjustmentType.Percentage ? $"{r.Value}%" : $"{r.Value:N0} KES")
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="PricingRule" Title="Actions" Width="160px">
+                <Template Context="r">
+                    <RadzenButton ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small" Icon="edit" Tooltip="Edit" Click="@(() => OpenEditDialog(r))" />
+                    <RadzenButton ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small" Icon="delete" Tooltip="Delete" Click="@(() => DeleteRule(r))" />
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+</RadzenCard>
+
+@if (showDialog)
+{
+    <RadzenDialog>
+        <RadzenCard Style="min-width:450px;">
+            <RadzenContentContainer>
+                <h4>@(editMode ? "Edit Rule" : "New Rule")</h4>
+
+                <RadzenLabel Text="Rule Name" Component="ruleName" />
+                <RadzenTextBox @bind-Value="@editRule.Name" Id="ruleName" Placeholder="e.g. Peak Season Surcharge" />
+
+                <RadzenLabel Text="Condition" Component="condition" />
+                <RadzenTextBox @bind-Value="@editRule.Condition" Id="condition" Placeholder="e.g. Check-in date is weekend" />
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div>
+                        <RadzenLabel Text="Adjustment Type" Component="adjType" />
+                        <RadzenDropDown @bind-Value="@editRule.AdjustmentType" Data="@adjustmentTypes" Id="adjType" />
+                    </div>
+                    <div>
+                        <RadzenLabel Text="Value" Component="adjValue" />
+                        <RadzenNumeric @bind-Value="@editRule.Value" Id="adjValue" Min="0" Step="0.1" />
+                    </div>
+                </div>
+
+                <div style="margin-top:16px;display:flex;gap:8px;">
+                    <RadzenButton Text="@(editMode ? "Update" : "Add")" ButtonStyle="ButtonStyle.Primary" Click="@SaveRule" />
+                    <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Secondary" Click="@CloseDialog" />
+                </div>
+            </RadzenContentContainer>
+        </RadzenCard>
+    </RadzenDialog>
+}
+
+@code {
+    private List<PricingRule> rules = new();
+    private AdjustmentType[] adjustmentTypes = Enum.GetValues<AdjustmentType>();
+    private bool showDialog;
+    private bool editMode;
+    private PricingRule editRule = new();
+
+    private enum AdjustmentType { Percentage, Fixed }
+
+    private class PricingRule
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Condition { get; set; } = string.Empty;
+        public AdjustmentType AdjustmentType { get; set; }
+        public decimal Value { get; set; }
+    }
+
+    private int _nextId = 1;
+
+    protected override void OnInitialized()
+    {
+        rules = new()
+        {
+            new() { Id = _nextId++, Name = "Weekend Surcharge", Condition = "Check-in on Friday or Saturday", AdjustmentType = AdjustmentType.Percentage, Value = 15 },
+            new() { Id = _nextId++, Name = "Peak Season", Condition = "Dec 15 - Jan 15", AdjustmentType = AdjustmentType.Percentage, Value = 25 },
+            new() { Id = _nextId++, Name = "Last Minute", Condition = "Booking within 3 days of arrival", AdjustmentType = AdjustmentType.Percentage, Value = -10 },
+            new() { Id = _nextId++, Name = "Early Bird", Condition = "Booking more than 60 days ahead", AdjustmentType = AdjustmentType.Fixed, Value = -5000 },
+        };
+    }
+
+    private void OpenAddDialog()
+    {
+        editRule = new PricingRule();
+        editMode = false;
+        showDialog = true;
+    }
+
+    private void OpenEditDialog(PricingRule rule)
+    {
+        editRule = new PricingRule
+        {
+            Id = rule.Id,
+            Name = rule.Name,
+            Condition = rule.Condition,
+            AdjustmentType = rule.AdjustmentType,
+            Value = rule.Value
+        };
+        editMode = true;
+        showDialog = true;
+    }
+
+    private void SaveRule()
+    {
+        if (string.IsNullOrWhiteSpace(editRule.Name)) return;
+
+        if (editMode)
+        {
+            var idx = rules.FindIndex(r => r.Id == editRule.Id);
+            if (idx >= 0) rules[idx] = editRule;
+        }
+        else
+        {
+            editRule.Id = _nextId++;
+            rules.Add(editRule);
+        }
+
+        showDialog = false;
+        NotificationService.Notify(NotificationSeverity.Success, "Saved", $"Rule \"{editRule.Name}\" {(editMode ? "updated" : "added")}.");
+    }
+
+    private async Task DeleteRule(PricingRule rule)
+    {
+        var confirmed = await DialogService.Confirm($"Delete rule \"{rule.Name}\"?", "Confirm",
+            new ConfirmOptions { OkButtonText = "Delete" });
+        if (confirmed == true)
+        {
+            rules.Remove(rule);
+            NotificationService.Notify(NotificationSeverity.Success, "Deleted", $"Rule \"{rule.Name}\" removed.");
+        }
+    }
+
+    private void CloseDialog() => showDialog = false;
+}

@@ -1,0 +1,223 @@
+@page "/pos/gift-shop"
+@attribute [Authorize]
+@using BookingBackendWebApp.Services.Pos
+@inject IPosService PosService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:16px">
+    <RadzenCard>
+        <RadzenCardHeader>
+            <div style="display:flex;align-items:center;justify-content:space-between">
+                <span style="font-size:1.1rem;font-weight:500">Product Catalog</span>
+                <div style="display:flex;gap:8px">
+                    <RadzenDropDown @bind-Value="_categoryFilter" Data="@_categories" Placeholder="All Categories" Change="@StateHasChanged" />
+                </div>
+            </div>
+        </RadzenCardHeader>
+        <RadzenCardContent>
+            <RadzenDataGrid @ref="_catalogGrid" Data="@FilteredCatalog" TItem="PosMenuItem" AllowFiltering="true" AllowSorting="true" AllowPaging="true" PageSize="8">
+                <Columns>
+                    <RadzenDataGridColumn TItem="PosMenuItem" Property="Name" Title="Product" Filterable="true" Sortable="true" />
+                    <RadzenDataGridColumn TItem="PosMenuItem" Property="Category" Title="Category" Filterable="true" Sortable="true" />
+                    <RadzenDataGridColumn TItem="PosMenuItem" Property="Price" Title="Price" Filterable="false" Sortable="true">
+                        <Template Context="p">@p.Price.ToString("C")</Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="PosMenuItem" Title="Available" Filterable="false" Sortable="false">
+                        <Template Context="p">
+                            <RadzenBadge BadgeStyle="@(p.IsAvailable ? BadgeStyle.Success : BadgeStyle.Danger)" Text="@(p.IsAvailable ? "In Stock" : "Out of Stock")" />
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="PosMenuItem" Title="Actions" Width="120px">
+                        <Template Context="p">
+                            <RadzenButton Text="Add to Cart" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small" Click="@(() => AddToCart(p))" Disabled="@(!p.IsAvailable)" />
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenCardContent>
+    </RadzenCard>
+
+    <div style="display:flex;flex-direction:column;gap:16px">
+        <RadzenCard>
+            <RadzenCardHeader>
+                <span style="font-size:1.1rem;font-weight:500">Barcode Scan</span>
+            </RadzenCardHeader>
+            <RadzenCardContent>
+                <div style="display:flex;gap:8px">
+                    <RadzenTextBox @bind-Value="_scanInput" Placeholder="Scan barcode or enter item code" Style="flex:1" />
+                    <RadzenButton Text="Lookup" ButtonStyle="ButtonStyle.Primary" Click="@LookupScan" />
+                </div>
+            </RadzenCardContent>
+        </RadzenCard>
+
+        <RadzenCard Style="flex:1">
+            <RadzenCardHeader>
+                <div style="display:flex;align-items:center;justify-content:space-between">
+                    <span style="font-size:1.1rem;font-weight:500">Cart</span>
+                    <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="@($"{_cartItems.Sum(i => i.Quantity)} item(s)")" />
+                </div>
+            </RadzenCardHeader>
+            <RadzenCardContent>
+                @if (_cartItems.Any())
+                {
+                    <RadzenDataGrid Data="@_cartItems" TItem="CartEntry" AllowSorting="false" AllowPaging="false">
+                        <Columns>
+                            <RadzenDataGridColumn TItem="CartEntry" Title="Item">
+                                <Template Context="c">@c.ItemName</Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn TItem="CartEntry" Property="Quantity" Title="Qty" Width="60px" />
+                            <RadzenDataGridColumn TItem="CartEntry" Property="Total" Title="Price">
+                                <Template Context="c">@c.Total.ToString("C")</Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn TItem="CartEntry" Title="" Width="50px">
+                                <Template Context="c">
+                                    <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small" Click="@(() => RemoveFromCart(c))" />
+                                </Template>
+                            </RadzenDataGridColumn>
+                        </Columns>
+                    </RadzenDataGrid>
+                    <div style="margin-top:12px;font-size:1.2rem;font-weight:bold;text-align:right">
+                        Total: @_cartItems.Sum(i => i.Total).ToString("C")
+                    </div>
+                    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+                        <RadzenButton Text="Clear" ButtonStyle="ButtonStyle.Secondary" Click="@ClearCart" />
+                        <RadzenButton Text="Checkout" ButtonStyle="ButtonStyle.Primary" Click="@Checkout" />
+                    </div>
+                }
+                else
+                {
+                    <div style="text-align:center;padding:24px;color:#888">Cart is empty</div>
+                }
+            </RadzenCardContent>
+        </RadzenCard>
+    </div>
+</div>
+
+@code {
+    private RadzenDataGrid<PosMenuItem>? _catalogGrid;
+    private List<PosMenuItem> _menuItems = new();
+    private List<CartEntry> _cartItems = new();
+    private PosCategory? _categoryFilter;
+    private string _scanInput = string.Empty;
+
+    private List<PosCategory> _categories = Enum.GetValues<PosCategory>().ToList();
+
+    private List<PosMenuItem> FilteredCatalog =>
+        _categoryFilter.HasValue
+            ? _menuItems.Where(m => m.Category == _categoryFilter.Value).ToList()
+            : _menuItems;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            _menuItems = await PosService.GetMenuItemsAsync();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Error", $"Failed to load catalog: {ex.Message}");
+        }
+    }
+
+    private void AddToCart(PosMenuItem item)
+    {
+        if (!item.IsAvailable) return;
+
+        var existing = _cartItems.FirstOrDefault(c => c.MenuItemId == item.Id);
+        if (existing != null)
+        {
+            existing.Quantity++;
+            existing.Total = existing.Quantity * existing.UnitPrice;
+        }
+        else
+        {
+            _cartItems.Add(new CartEntry
+            {
+                MenuItemId = item.Id,
+                ItemName = item.Name,
+                Quantity = 1,
+                UnitPrice = item.Price,
+                Total = item.Price
+            });
+        }
+    }
+
+    private void RemoveFromCart(CartEntry entry)
+    {
+        _cartItems.Remove(entry);
+    }
+
+    private void ClearCart()
+    {
+        _cartItems.Clear();
+    }
+
+    private void LookupScan()
+    {
+        if (string.IsNullOrWhiteSpace(_scanInput)) return;
+
+        var code = _scanInput.Trim().ToLower();
+        var item = _menuItems.FirstOrDefault(m => m.Name.ToLower().Contains(code) || m.Id.ToString() == code);
+        if (item != null)
+        {
+            AddToCart(item);
+            NotificationService.Notify(NotificationSeverity.Success, "Found", $"{item.Name} added to cart");
+        }
+        else
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Not Found", $"No item matching '{_scanInput}'");
+        }
+
+        _scanInput = string.Empty;
+    }
+
+    private async Task Checkout()
+    {
+        if (!_cartItems.Any()) return;
+
+        var total = _cartItems.Sum(i => i.Total);
+        var confirm = await DialogService.Confirm($"Process checkout for {total.ToString("C")}?", "Checkout", new ConfirmOptions { OkButtonText = "Confirm", CancelButtonText = "Cancel" });
+        if (confirm != true) return;
+
+        try
+        {
+            var order = new PosOrder { TableNumber = 0 };
+            var created = await PosService.CreateOrderAsync(order);
+
+            foreach (var entry in _cartItems)
+            {
+                var orderItem = new PosOrderItem
+                {
+                    MenuItemId = entry.MenuItemId,
+                    Quantity = entry.Quantity,
+                    UnitPrice = entry.UnitPrice,
+                    TotalPrice = entry.Total
+                };
+                await PosService.AddOrderItemAsync(created.Id, orderItem);
+            }
+
+            await PosService.ProcessPaymentAsync(created.Id, total);
+            NotificationService.Notify(NotificationSeverity.Success, "Success", $"Checkout complete: {total.ToString("C")}");
+            _cartItems.Clear();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Error", $"Checkout failed: {ex.Message}");
+        }
+    }
+
+    private class CartEntry
+    {
+        public int MenuItemId { get; set; }
+        public string ItemName { get; set; } = string.Empty;
+        public int Quantity { get; set; }
+        public decimal UnitPrice { get; set; }
+        public decimal Total { get; set; }
+    }
+}

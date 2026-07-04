@@ -1,0 +1,47 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+@inject NavigationManager NavManager
+
+<AuthorizeView>
+    <Authorized>
+        <RadzenDialog />
+        <RadzenNotification />
+
+        <div class="main-layout">
+            <RadzenSidebar @ref="_sidebar">
+                <NavMenu />
+            </RadzenSidebar>
+
+            <div class="main-layout__body">
+                <header class="main-layout__header">
+                    <div class="main-layout__header-left">
+                        <RadzenSidebarToggle Click="@ToggleSidebar" />
+                        <h1 class="main-layout__title">Tourism Management Portal</h1>
+                    </div>
+                    <div class="main-layout__header-right">
+                        <LoginDisplay />
+                    </div>
+                </header>
+
+                <main class="main-layout__content">
+                    @Body
+                </main>
+            </div>
+        </div>
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    private RadzenSidebar? _sidebar;
+
+    private void ToggleSidebar()
+    {
+        _sidebar?.Toggle();
+    }
+
+    public void Dispose()
+    {
+    }
+}

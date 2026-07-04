@@ -1,0 +1,218 @@
+@page "/conservation/incidents"
+@using BookingBackendWebApp.Services.Conservation
+@inject IConservationService ConservationService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<PageTitle>Conservation Incidents</PageTitle>
+
+<RadzenStack Gap="1.5rem">
+    <RadzenRow>
+        <RadzenColumn Size="12">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween">
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.75rem">
+                    <RadzenIcon Icon="warning" IconStyle="IconStyle.Danger" Style="font-size: 1.75rem;" />
+                    <RadzenStack Gap="0.125rem">
+                        <RadzenText TextStyle="TextStyle.H5" TagName="TagName.H1" Style="margin: 0;">Conservation Incidents</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0; color: var(--rz-text-secondary-color);">Report and track conservation-related incidents</RadzenText>
+                    </RadzenStack>
+                </RadzenStack>
+                <RadzenButton Icon="add" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small" Click="@(() => showIncidentForm = !showIncidentForm)" Text="@(showIncidentForm ? "Cancel" : "Report Incident")" />
+            </RadzenStack>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenCard class="rz-shadow-3">
+        <RadzenStack Gap="1rem">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="1rem">
+                <RadzenIcon Icon="filter_alt" IconStyle="IconStyle.Secondary" />
+                <RadzenDropDown Data="@incidentTypes" @bind-Value="@filterType" Placeholder="All Types" Style="width: 180px;" Change="@ApplyFilters" />
+                <RadzenDropDown Data="@incidentSeverities" @bind-Value="@filterSeverity" Placeholder="All Severities" Style="width: 180px;" Change="@ApplyFilters" />
+                <RadzenDropDown Data="@incidentStatuses" @bind-Value="@filterStatus" Placeholder="All Statuses" Style="width: 180px;" Change="@ApplyFilters" />
+                <RadzenButton Icon="clear" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="@ClearFilters" Text="Clear" />
+            </RadzenStack>
+        </RadzenStack>
+    </RadzenCard>
+
+    @if (showIncidentForm)
+    {
+        <RadzenCard class="rz-shadow-3" Style="background: var(--rz-base-100); border-left: 4px solid #F44336;">
+            <RadzenTemplateForm TItem="Incident" Model="@newIncident" Submit="@SaveIncident">
+                <RadzenStack Gap="1rem">
+                    <RadzenRow Gap="1rem">
+                        <RadzenColumn Size="12" SizeMD="4">
+                            <RadzenDropDown Data="@incidentTypes" @bind-Value="@newIncident.Type" Placeholder="Incident Type" Style="width: 100%;" />
+                        </RadzenColumn>
+                        <RadzenColumn Size="12" SizeMD="4">
+                            <RadzenDropDown Data="@incidentSeverities" @bind-Value="@newIncident.Severity" Placeholder="Severity" Style="width: 100%;" />
+                        </RadzenColumn>
+                        <RadzenColumn Size="12" SizeMD="4">
+                            <RadzenTextBox @bind-Value="@newIncident.Location" Placeholder="Location" Style="width: 100%;" />
+                        </RadzenColumn>
+                    </RadzenRow>
+                    <RadzenRow Gap="1rem">
+                        <RadzenColumn Size="12" SizeMD="4">
+                            <RadzenDatePicker @bind-Value="@newIncident.Date" Placeholder="Date" Style="width: 100%;" />
+                        </RadzenColumn>
+                        <RadzenColumn Size="12" SizeMD="4">
+                            <RadzenTextBox @bind-Value="@newIncident.ReportedBy" Placeholder="Reported By" Style="width: 100%;" />
+                        </RadzenColumn>
+                        <RadzenColumn Size="12" SizeMD="2">
+                            <RadzenTextBox @bind-Value="@gpsLat" Placeholder="GPS Latitude" Style="width: 100%;" />
+                        </RadzenColumn>
+                        <RadzenColumn Size="12" SizeMD="2">
+                            <RadzenTextBox @bind-Value="@gpsLng" Placeholder="GPS Longitude" Style="width: 100%;" />
+                        </RadzenColumn>
+                    </RadzenRow>
+                    <RadzenRow>
+                        <RadzenColumn Size="12">
+                            <RadzenTextBox @bind-Value="@newIncident.Description" Placeholder="Incident description..." Style="width: 100%;" TextMode="InputType.TextArea" Rows="3" />
+                        </RadzenColumn>
+                    </RadzenRow>
+                    <RadzenRow>
+                        <RadzenColumn Size="12">
+                            <RadzenButton ButtonType="ButtonType.Submit" ButtonStyle="ButtonStyle.Danger" Text="Submit Report" />
+                        </RadzenColumn>
+                    </RadzenRow>
+                </RadzenStack>
+            </RadzenTemplateForm>
+        </RadzenCard>
+    }
+
+    <RadzenCard class="rz-shadow-3">
+        <RadzenStack Gap="1rem">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                <RadzenIcon Icon="view_list" IconStyle="IconStyle.Primary" />
+                <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">Incident Reports</RadzenText>
+                <RadzenBadge BadgeStyle="BadgeStyle.Primary" Text="@($"{filteredIncidents.Count} incidents")" />
+            </RadzenStack>
+            <RadzenDataGrid Data="@filteredIncidents" TItem="Incident" AllowSorting="true" AllowPaging="true" PageSize="8">
+                <Columns>
+                    <RadzenDataGridColumn Title="Type" Width="160px">
+                        <Template Context="inc">
+                            <RadzenBadge Text="@inc.Type.ToString()" BadgeStyle="@GetIncidentTypeBadge(inc.Type)" />
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn Title="Location" Property="Location" Width="160px" />
+                    <RadzenDataGridColumn Title="Date" Width="120px">
+                        <Template Context="inc">
+                            <RadzenText>@inc.Date.ToString("MMM dd, yyyy")</RadzenText>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn Title="Severity" Width="110px">
+                        <Template Context="inc">
+                            <RadzenBadge Text="@inc.Severity.ToString()" BadgeStyle="@GetSeverityBadge(inc.Severity)" />
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn Title="Reported By" Property="ReportedBy" Width="140px" />
+                    <RadzenDataGridColumn Title="Status" Width="120px">
+                        <Template Context="inc">
+                            <RadzenBadge Text="@inc.Status.ToString()" BadgeStyle="@GetIncidentStatusBadge(inc.Status)" />
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn Title="Actions" Width="100px">
+                        <Template Context="inc">
+                            @if (inc.Status != IncidentStatus.Resolved)
+                            {
+                                <RadzenButton ButtonStyle="ButtonStyle.Success" Size="ButtonSize.ExtraSmall" Icon="check" Click="@(() => ResolveIncident(inc.Id))" />
+                            }
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenStack>
+    </RadzenCard>
+</RadzenStack>
+
+@code {
+    private List<Incident> allIncidents = new();
+    private List<Incident> filteredIncidents = new();
+    private IncidentType? filterType;
+    private IncidentSeverity? filterSeverity;
+    private IncidentStatus? filterStatus;
+    private IncidentType[] incidentTypes = Enum.GetValues<IncidentType>();
+    private IncidentSeverity[] incidentSeverities = Enum.GetValues<IncidentSeverity>();
+    private IncidentStatus[] incidentStatuses = Enum.GetValues<IncidentStatus>();
+    private bool showIncidentForm;
+    private Incident newIncident = new() { Date = DateTime.Today, Status = IncidentStatus.Open };
+    private string gpsLat = "";
+    private string gpsLng = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        allIncidents = await ConservationService.GetIncidentsAsync();
+        ApplyFilters();
+    }
+
+    private void ApplyFilters()
+    {
+        filteredIncidents = allIncidents.Where(i =>
+            (!filterType.HasValue || i.Type == filterType.Value) &&
+            (!filterSeverity.HasValue || i.Severity == filterSeverity.Value) &&
+            (!filterStatus.HasValue || i.Status == filterStatus.Value)
+        ).ToList();
+    }
+
+    private void ClearFilters()
+    {
+        filterType = null;
+        filterSeverity = null;
+        filterStatus = null;
+        ApplyFilters();
+    }
+
+    private async Task SaveIncident()
+    {
+        if (double.TryParse(gpsLat, out var lat)) newIncident.GpsLatitude = lat;
+        if (double.TryParse(gpsLng, out var lng)) newIncident.GpsLongitude = lng;
+        await ConservationService.ReportIncidentAsync(newIncident);
+        NotificationService.Notify(NotificationSeverity.Success, "Incident reported successfully");
+        newIncident = new() { Date = DateTime.Today, Status = IncidentStatus.Open };
+        gpsLat = "";
+        gpsLng = "";
+        showIncidentForm = false;
+        await LoadData();
+    }
+
+    private async Task ResolveIncident(int id)
+    {
+        var confirmed = await DialogService.Confirm("Mark this incident as resolved?", "Confirm Resolution");
+        if (confirmed == true)
+        {
+            await ConservationService.ResolveIncidentAsync(id);
+            NotificationService.Notify(NotificationSeverity.Success, "Incident resolved");
+            await LoadData();
+        }
+    }
+
+    private BadgeStyle GetIncidentTypeBadge(IncidentType type) => type switch
+    {
+        IncidentType.Poaching => BadgeStyle.Danger,
+        IncidentType.IllegalFishing => BadgeStyle.Warning,
+        IncidentType.IllegalLogging => BadgeStyle.Warning,
+        IncidentType.HumanWildlifeConflict => BadgeStyle.Info,
+        _ => BadgeStyle.Light
+    };
+
+    private BadgeStyle GetSeverityBadge(IncidentSeverity severity) => severity switch
+    {
+        IncidentSeverity.Critical => BadgeStyle.Danger,
+        IncidentSeverity.High => BadgeStyle.Warning,
+        IncidentSeverity.Medium => BadgeStyle.Info,
+        IncidentSeverity.Low => BadgeStyle.Secondary,
+        _ => BadgeStyle.Light
+    };
+
+    private BadgeStyle GetIncidentStatusBadge(IncidentStatus status) => status switch
+    {
+        IncidentStatus.Open => BadgeStyle.Danger,
+        IncidentStatus.Investigating => BadgeStyle.Warning,
+        IncidentStatus.Resolved => BadgeStyle.Success,
+        _ => BadgeStyle.Light
+    };
+}

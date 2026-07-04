@@ -1,0 +1,144 @@
+@page "/revenue-management/rates"
+@namespace BookingBackendWebApp.Pages.RevenueManagement
+@using BookingBackendWebApp.Services.RevenueManagement
+@inject IRevenueManagementService RevenueService
+@inject DialogService Dialog
+@inject NotificationService Notification
+
+<RadzenStack Gap="16px">
+    <RadzenRow>
+        <RadzenColumn Size="4">
+            <RadzenText TextStyle="TextStyle.H5">Rate Calendar</RadzenText>
+        </RadzenColumn>
+        <RadzenColumn Size="4">
+            <RadzenDatePicker @bind-Value="_startDate" Change="@OnDateRangeChanged" />
+        </RadzenColumn>
+        <RadzenColumn Size="4" Style="text-align:right">
+            <RadzenButton Text="Override Rate" Icon="edit" ButtonStyle="ButtonStyle.Primary" Click="@OpenOverrideDialog" />
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenCard>
+        <div style="overflow-x:auto">
+            <table class="table table-bordered" style="min-width:800px">
+                <thead>
+                    <tr>
+                        <th style="min-width:140px">Room Type</th>
+                        @foreach (var date in _dateRange)
+                        {
+                            <th style="min-width:80px;text-align:center">@date.ToString("MMM dd")</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var room in _roomTypes)
+                    {
+                        <tr>
+                            <td><strong>@room.Name</strong></td>
+                            @foreach (var date in _dateRange)
+                            {
+                                var rate = GetRate(room.Id, date);
+                                var isPeak = date.Month >= 7 && date.Month <= 9;
+                                <td style="text-align:center;background-color:@(isPeak ? "#fff3cd" : "#d4edda")">
+                                    @rate.ToString("N0")
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </RadzenCard>
+</RadzenStack>
+
+@if (_showOverride)
+{
+    <RadzenDialog IsOpen="true" Title="Override Rate" Close="@(() => _showOverride = false)">
+        <RadzenTemplateForm TItem="RoomTypeInfo" Submit="@SaveOverride">
+            <RadzenStack Gap="12px">
+                <RadzenDropDown @bind-Value="_overrideRoomTypeId" Data="@_roomTypes" TextProperty="Name" ValueProperty="Id" Placeholder="Room type" />
+                <RadzenDatePicker @bind-Value="_overrideDate" />
+                <RadzenTextBox @bind-Value="_overrideRate" Placeholder="New rate (KES)" />
+                <RadzenStack Horizontal="true" Gap="8px" JustifyContent="JustifyContent.End">
+                    <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Base" Click="@(() => _showOverride = false)" />
+                    <RadzenButton Text="Apply" ButtonStyle="ButtonStyle.Primary" HtmlType="submit" />
+                </RadzenStack>
+            </RadzenStack>
+        </RadzenTemplateForm>
+    </RadzenDialog>
+}
+
+@code {
+    private DateTime _startDate = DateTime.Today;
+    private List<DateTime> _dateRange = new();
+    private bool _showOverride;
+    private int _overrideRoomTypeId;
+    private DateTime _overrideDate = DateTime.Today;
+    private string _overrideRate = string.Empty;
+
+    private List<RoomTypeInfo> _roomTypes = new()
+    {
+        new() { Id = 1, Name = "Standard Room" },
+        new() { Id = 2, Name = "Deluxe Room" },
+        new() { Id = 3, Name = "Suite" },
+        new() { Id = 4, Name = "Family Room" },
+        new() { Id = 5, Name = "Presidential Suite" }
+    };
+
+    private Dictionary<string, decimal> _rateOverrides = new();
+
+    protected override void OnInitialized()
+    {
+        GenerateDateRange();
+    }
+
+    private void GenerateDateRange()
+    {
+        _dateRange = Enumerable.Range(0, 14).Select(d => _startDate.AddDays(d)).ToList();
+    }
+
+    private void OnDateRangeChanged()
+    {
+        GenerateDateRange();
+        StateHasChanged();
+    }
+
+    private decimal GetRate(int roomTypeId, DateTime date)
+    {
+        var key = $"{roomTypeId}_{date:yyyyMMdd}";
+        if (_rateOverrides.TryGetValue(key, out var ov))
+            return ov;
+
+        return RevenueService.CalculateOptimalPriceAsync(roomTypeId, date).GetAwaiter().GetResult();
+    }
+
+    private void OpenOverrideDialog()
+    {
+        _overrideRoomTypeId = _roomTypes.First().Id;
+        _overrideDate = DateTime.Today;
+        _overrideRate = string.Empty;
+        _showOverride = true;
+    }
+
+    private void SaveOverride()
+    {
+        if (decimal.TryParse(_overrideRate, out var rate))
+        {
+            var key = $"{_overrideRoomTypeId}_{_overrideDate:yyyyMMdd}";
+            _rateOverrides[key] = rate;
+            Notification.Notify(NotificationSeverity.Success, "Rate override applied");
+        }
+        else
+        {
+            Notification.Notify(NotificationSeverity.Error, "Invalid rate value");
+        }
+        _showOverride = false;
+        StateHasChanged();
+    }
+
+    private class RoomTypeInfo
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+}

@@ -1,0 +1,111 @@
+@page "/park-entry/permits"
+@using BookingBackendWebApp.Services.ParkEntry
+@inject IParkEntryService ParkEntryService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<RadzenStack Gap="24">
+    <RadzenCard>
+        <RadzenStack Gap="16">
+            <RadzenStack Horizontal="true" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+                <RadzenText TextStyle="TextStyle.H5">Special Permits Management</RadzenText>
+                <RadzenButton Text="Issue New Permit" ButtonType="ButtonType.Button"
+                    ButtonStyle="ButtonStyle.Primary" Icon="add" Click="@OpenIssueDialog" />
+            </RadzenStack>
+
+            <RadzenDataGrid Data="@_permits" TItem="Permit" AllowPaging="true" AllowSorting="true" PageSize="10">
+                <Columns>
+                    <RadzenDataGridColumn TItem="Permit" Property="PermitType" Title="Permit Type" Sortable="true" />
+                    <RadzenDataGridColumn TItem="Permit" Property="Holder" Title="Holder Name" Sortable="true" />
+                    <RadzenDataGridColumn TItem="Permit" Property="IssueDate" Title="Issue Date" Sortable="true">
+                        <Template Context="item">
+                            @item.IssueDate.ToShortDateString()
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="Permit" Property="ExpiryDate" Title="Expiry Date" Sortable="true">
+                        <Template Context="item">
+                            @item.ExpiryDate.ToShortDateString()
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="Permit" Property="Fee" Title="Fee" Sortable="true">
+                        <Template Context="item">
+                            @item.Fee.ToString("C2")
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="Permit" Title="Status">
+                        <Template Context="item">
+                            @if (item.ExpiryDate >= DateTime.Today)
+                            {
+                                <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="Active" />
+                            }
+                            else
+                            {
+                                <RadzenBadge BadgeStyle="BadgeStyle.Danger" Text="Expired" />
+                            }
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="Permit" Title="Actions">
+                        <Template Context="item">
+                            <RadzenButton ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small"
+                                Icon="delete" Click="@(() => RevokePermit(item))" />
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenStack>
+    </RadzenCard>
+</RadzenStack>
+
+@code {
+    private List<Permit> _permits = new();
+
+    private readonly string[] _permitTypes = { "Drone", "Photography", "Film" };
+    private int _nextId = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var pricing = await ParkEntryService.GetPricingAsync();
+        if (pricing.Count > 0)
+        {
+            _permits.Add(new Permit
+            {
+                Id = _nextId++,
+                PermitType = "Drone",
+                Holder = "Sample Holder",
+                IssueDate = DateTime.Today.AddDays(-30),
+                ExpiryDate = DateTime.Today.AddDays(335),
+                Fee = pricing[0].DronePermitFee
+            });
+        }
+    }
+
+    private async Task OpenIssueDialog()
+    {
+        var permit = await DialogService.OpenAsync<IssuePermitDialog>("Issue New Permit",
+            new Dictionary<string, object> { { "PermitTypes", _permitTypes } },
+            new DialogOptions { Width = "500px", Resizable = true, Draggable = true });
+
+        if (permit is Permit newPermit)
+        {
+            newPermit.Id = _nextId++;
+            _permits.Add(newPermit);
+            NotificationService.Notify(NotificationSeverity.Success, "Permit issued successfully");
+        }
+    }
+
+    private void RevokePermit(Permit permit)
+    {
+        _permits.Remove(permit);
+        NotificationService.Notify(NotificationSeverity.Warning, $"Permit for {permit.Holder} revoked");
+    }
+
+    private class Permit
+    {
+        public int Id { get; set; }
+        public string PermitType { get; set; } = string.Empty;
+        public string Holder { get; set; } = string.Empty;
+        public DateTime IssueDate { get; set; } = DateTime.Today;
+        public DateTime ExpiryDate { get; set; } = DateTime.Today.AddYears(1);
+        public decimal Fee { get; set; }
+    }
+}

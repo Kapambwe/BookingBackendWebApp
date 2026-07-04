@@ -1,0 +1,102 @@
+@page "/accommodation/availability"
+@namespace BookingBackendWebApp.Pages.Accommodation
+@inject IAccommodationService AccommodationService
+
+<RadzenCard>
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;">Availability Calendar</h3>
+        <div style="display:flex;align-items:center;gap:12px;">
+            <RadzenButton ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Small" Icon="chevron_left" Click="@PreviousMonth" />
+            <span style="font-size:16px;font-weight:600;min-width:200px;text-align:center;">@currentMonth.ToString("MMMM yyyy")</span>
+            <RadzenButton ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Small" Icon="chevron_right" Click="@NextMonth" />
+        </div>
+    </div>
+    <div style="display:flex;gap:16px;margin-top:12px;">
+        <span><span style="display:inline-block;width:14px;height:14px;background:#4caf50;border-radius:3px;vertical-align:middle;"></span> Available</span>
+        <span><span style="display:inline-block;width:14px;height:14px;background:#f44336;border-radius:3px;vertical-align:middle;"></span> Occupied</span>
+        <span><span style="display:inline-block;width:14px;height:14px;background:#ff9800;border-radius:3px;vertical-align:middle;"></span> Maintenance</span>
+        <span><span style="display:inline-block;width:14px;height:14px;background:#ffeb3b;border-radius:3px;vertical-align:middle;"></span> Cleaning</span>
+    </div>
+</RadzenCard>
+
+<RadzenCard>
+    <div style="overflow-x:auto;">
+        <table style="border-collapse:collapse;font-size:12px;width:100%;">
+            <thead>
+                <tr>
+                    <th style="position:sticky;left:0;background:var(--rz-surface-card);padding:6px 12px;border:1px solid var(--rz-border);text-align:left;min-width:140px;z-index:1;">Room</th>
+                    @foreach (var day in days)
+                    {
+                        <th style="padding:6px 4px;border:1px solid var(--rz-border);text-align:center;min-width:36px;font-weight:@(day.DayOfWeek == DayOfWeek.Saturday || day.DayOfWeek == DayOfWeek.Sunday ? "700" : "400");background:@(day.DayOfWeek == DayOfWeek.Saturday || day.DayOfWeek == DayOfWeek.Sunday ? "var(--rz-surface-highlight)" : "var(--rz-surface-card)");">
+                            <div>@day.Day</div>
+                            <div style="font-size:9px;color:var(--rz-text-secondary);">@day.DayOfWeek.ToString()[..3]</div>
+                        </th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var room in rooms)
+                {
+                    <tr>
+                        <td style="position:sticky;left:0;background:var(--rz-surface-card);padding:6px 12px;border:1px solid var(--rz-border);font-weight:500;z-index:1;">
+                            <div>@room.RoomNumber</div>
+                            <div style="font-size:10px;color:var(--rz-text-secondary);">@room.RoomType</div>
+                        </td>
+                        @{
+                            var cellColor = GetStatusColor(room.Status);
+                        }
+                        @foreach (var day in days)
+                        {
+                            <td style="padding:0;border:1px solid var(--rz-border);text-align:center;background:@cellColor;width:36px;height:32px;cursor:pointer;" title="@GetCellTitle(room, day)">
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</RadzenCard>
+
+@code {
+    private List<Room> rooms = new();
+    private DateTime currentMonth = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private List<DateTime> days = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        rooms = await AccommodationService.GetRoomsAsync();
+        BuildMonth();
+    }
+
+    private void BuildMonth()
+    {
+        days = new();
+        var daysInMonth = DateTime.DaysInMonth(currentMonth.Year, currentMonth.Month);
+        for (var d = 1; d <= daysInMonth; d++)
+            days.Add(new DateTime(currentMonth.Year, currentMonth.Month, d));
+    }
+
+    private void PreviousMonth()
+    {
+        currentMonth = currentMonth.AddMonths(-1);
+        BuildMonth();
+    }
+
+    private void NextMonth()
+    {
+        currentMonth = currentMonth.AddMonths(1);
+        BuildMonth();
+    }
+
+    private string GetCellTitle(Room room, DateTime day) => $"{room.RoomNumber} - {day:dd MMM yyyy}: {room.Status}";
+
+    private string GetStatusColor(RoomStatus status) => status switch
+    {
+        RoomStatus.Available => "#4caf50",
+        RoomStatus.Occupied => "#f44336",
+        RoomStatus.Maintenance => "#ff9800",
+        RoomStatus.Cleaning => "#ffeb3b",
+        RoomStatus.OutOfOrder => "#9e9e9e",
+        _ => "#e0e0e0"
+    };
+}

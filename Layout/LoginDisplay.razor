@@ -1,0 +1,31 @@
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<AuthorizeView>
+    <Authorized>
+        <div class="login-display">
+            <RadzenIcon Icon="account_circle" Variant="IconVariant.Filled" />
+            <span class="login-display__name">@context.User.Identity?.Name</span>
+            <RadzenButton Text="Logout" Size="ButtonSize.Small" Variant="Variant.Text"
+                          Click="@HandleLogout" />
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <div class="login-display">
+            <RadzenButton Text="Login" Size="ButtonSize.Small"
+                          Click="@HandleLogin" />
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private async Task HandleLogin()
+    {
+        Navigation.NavigateTo("login", forceLoad: true);
+    }
+
+    private async Task HandleLogout()
+    {
+        Navigation.NavigateTo("logout", forceLoad: true);
+    }
+}

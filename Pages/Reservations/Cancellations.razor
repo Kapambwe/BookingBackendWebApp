@@ -1,0 +1,217 @@
+@page "/reservations/cancellations"
+@attribute [Authorize(Policy = "BookingCancel")]
+@using Microsoft.AspNetCore.Authorization
+@inject IBookingService BookingService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+@inject NavigationManager NavigationManager
+
+<RadzenCard>
+    <RadzenStack Gap="16">
+        <RadzenText Tag="H2" TextStyle="TextStyle.H3">Cancellations & Refunds</RadzenText>
+
+        <RadzenRow Gap="8" AlignItems="AlignItems.Center">
+            <RadzenColumn Size="4">
+                <RadzenDropDown @bind-Value="@_statusFilter"
+                                Placeholder="Filter by status"
+                                Data="@_statusOptions"
+                                TextProperty="Text"
+                                ValueProperty="Value"
+                                Change="@ApplyFilters" />
+            </RadzenColumn>
+            <RadzenColumn Size="4">
+                <RadzenTextBox @bind-Value="@_searchText" Placeholder="Search booking # or guest..." Change="@ApplyFilters" />
+            </RadzenColumn>
+            <RadzenColumn Size="4" Style="text-align: right;">
+                <RadzenText TextStyle="TextStyle.Subtitle2">
+                    Total Cancelled: @_cancelledCount | Total Refundable: @_refundableAmount.ToString("N0") KES
+                </RadzenText>
+            </RadzenColumn>
+        </RadzenRow>
+
+        <RadzenDataGrid @ref="@_grid"
+                        Data="@_filteredCancellations"
+                        AllowPaging="true"
+                        PageSize="10"
+                        AllowSorting="true">
+            <Columns>
+                <RadzenDataGridColumn TItem="Booking" Property="BookingNumber" Title="Booking #" Sortable="true" Width="140px" />
+                <RadzenDataGridColumn TItem="Booking" Property="GuestName" Title="Guest" Sortable="true" Width="180px" />
+                <RadzenDataGridColumn TItem="Booking" Property="BookingType" Title="Type" Sortable="true" Width="120px">
+                    <Template Context="b">
+                        @GetBookingTypeDisplay(b.BookingType)
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Booking" Property="Status" Title="Status" Sortable="true" Width="130px">
+                    <Template Context="b">
+                        <span class="@(b.Status == BookingStatus.Cancelled ? "badge badge-danger" : "badge badge-warning")">
+                            @(b.Status == BookingStatus.Cancelled ? "Cancelled" : "Pending Cancel")
+                        </span>
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Booking" Property="TotalAmount" Title="Total" Sortable="true" Width="120px">
+                    <Template Context="b">
+                        @b.TotalAmount.ToString("N0")
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Booking" Property="PaidAmount" Title="Paid" Sortable="true" Width="120px">
+                    <Template Context="b">
+                        @b.PaidAmount.ToString("N0")
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Booking" Title="Refund" Width="200px">
+                    <Template Context="b">
+                        @if (b.Status == BookingStatus.Cancelled && b.PaidAmount > 0)
+                        {
+                            <RadzenRow Gap="4">
+                                <RadzenColumn Size="8">
+                                    <RadzenNumeric @bind-Value="@_refundAmounts[b.Id]" Min="0" Max="@b.PaidAmount" Step="100" />
+                                </RadzenColumn>
+                                <RadzenColumn Size="4">
+                                    <RadzenButton Text="Refund" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Warning"
+                                                  Disabled="@(_refundAmounts.GetValueOrDefault(b.Id, 0m) <= 0)"
+                                                  Click="@(() => ProcessRefund(b))" />
+                                </RadzenColumn>
+                            </RadzenRow>
+                        }
+                        else if (b.Status == BookingStatus.Cancelled)
+                        {
+                            <RadzenText TextStyle="TextStyle.Body2" Style="color: #888;">No payment to refund</RadzenText>
+                        }
+                        else
+                        {
+                            <RadzenText TextStyle="TextStyle.Body2" Style="color: #888;">Still pending</RadzenText>
+                        }
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Booking" Title="Actions" Width="120px">
+                    <Template Context="b">
+                        <RadzenButton Text="View" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Primary"
+                                      Click="@(() => NavigationManager.NavigateTo($"/reservations/{b.Id}"))" />
+                    </Template>
+                </RadzenDataGridColumn>
+            </Columns>
+        </RadzenDataGrid>
+    </RadzenStack>
+</RadzenCard>
+
+@code {
+    private RadzenDataGrid<Booking>? _grid;
+    private List<Booking> _allCancellations = new();
+    private List<Booking> _filteredCancellations = new();
+    private Dictionary<int, decimal> _refundAmounts = new();
+    private int _cancelledCount;
+    private decimal _refundableAmount;
+
+    private string? _statusFilter;
+    private string? _searchText;
+
+    private List<StatusOption> _statusOptions = new()
+    {
+        new() { Text = "All Cancellations", Value = null },
+        new() { Text = "Cancelled", Value = "Cancelled" },
+        new() { Text = "Pending Cancel", Value = "Pending" }
+    };
+
+    private class StatusOption
+    {
+        public string? Text { get; set; }
+        public string? Value { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCancellationsAsync();
+    }
+
+    private async Task LoadCancellationsAsync()
+    {
+        var all = await BookingService.GetBookingsAsync();
+        _allCancellations = all.Where(b => b.Status == BookingStatus.Cancelled || b.Status == BookingStatus.Pending).ToList();
+
+        _cancelledCount = _allCancellations.Count(b => b.Status == BookingStatus.Cancelled);
+        _refundableAmount = _allCancellations.Where(b => b.Status == BookingStatus.Cancelled).Sum(b => b.PaidAmount);
+
+        foreach (var b in _allCancellations)
+        {
+            if (!_refundAmounts.ContainsKey(b.Id))
+                _refundAmounts[b.Id] = b.PaidAmount;
+        }
+
+        ApplyFilters();
+    }
+
+    private void ApplyFilters()
+    {
+        var query = _allCancellations.AsEnumerable();
+
+        if (!string.IsNullOrEmpty(_statusFilter))
+        {
+            if (Enum.TryParse<BookingStatus>(_statusFilter, out var status))
+                query = query.Where(b => b.Status == status);
+        }
+
+        if (!string.IsNullOrWhiteSpace(_searchText))
+        {
+            var search = _searchText.ToLower();
+            query = query.Where(b =>
+                b.BookingNumber.ToLower().Contains(search) ||
+                b.GuestName.ToLower().Contains(search));
+        }
+
+        _filteredCancellations = query.ToList();
+    }
+
+    private async Task ProcessRefund(Booking booking)
+    {
+        var refundAmount = _refundAmounts.GetValueOrDefault(booking.Id, 0m);
+        if (refundAmount <= 0) return;
+
+        var confirmed = await DialogService.Confirm(
+            $"Process refund of {refundAmount:N0} KES for {booking.BookingNumber} ({booking.GuestName})?",
+            "Confirm Refund",
+            new ConfirmOptions { OkButtonText = "Process Refund", CancelButtonText = "Cancel" });
+
+        if (confirmed != true) return;
+
+        NotificationService.Notify(new NotificationMessage
+        {
+            Severity = NotificationSeverity.Success,
+            Summary = "Refund Processed",
+            Detail = $"Refund of {refundAmount:N0} KES processed for {booking.BookingNumber}.",
+            Duration = 4000
+        });
+
+        if (booking.PaidAmount - refundAmount <= 0)
+        {
+            booking.PaidAmount = 0;
+            booking.BalanceAmount = 0;
+        }
+        else
+        {
+            booking.PaidAmount -= refundAmount;
+            booking.BalanceAmount = booking.TotalAmount - booking.PaidAmount;
+        }
+
+        _refundAmounts[booking.Id] = 0;
+        await BookingService.UpdateBookingAsync(booking);
+        await LoadCancellationsAsync();
+    }
+
+    private static string GetBookingTypeDisplay(BookingType type) => type switch
+    {
+        BookingType.Room => "Room",
+        BookingType.Chalet => "Chalet",
+        BookingType.Tent => "Tent",
+        BookingType.Campsite => "Campsite",
+        BookingType.GameDrive => "Game Drive",
+        BookingType.BoatCruise => "Boat Cruise",
+        BookingType.FishingPermit => "Fishing Permit",
+        BookingType.HikingPermit => "Hiking Permit",
+        BookingType.ParkEntry => "Park Entry",
+        BookingType.PhotographyPermit => "Photo Permit",
+        BookingType.BirdWatching => "Bird Watching",
+        BookingType.SafariPackage => "Safari Package",
+        _ => type.ToString()
+    };
+}

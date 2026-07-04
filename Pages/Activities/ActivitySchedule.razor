@@ -1,0 +1,173 @@
+@page "/activities"
+@using BookingBackendWebApp.Services.Activities
+@inject IActivityService ActivityService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<RadzenStack Gap="24">
+    <RadzenCard>
+        <RadzenStack Gap="16">
+            <RadzenText TextStyle="TextStyle.H5">Activity Schedule</RadzenText>
+
+            <RadzenRow>
+                <RadzenColumn Size="3">
+                    <RadzenStack Gap="8">
+                        <RadzenText>Select Date</RadzenText>
+                        <RadzenDatePicker @bind-Value="@_selectedDate" DateFormat="yyyy-MM-dd"
+                            Change="@OnDateChanged" />
+                    </RadzenStack>
+                </RadzenColumn>
+                <RadzenColumn Size="3">
+                    <RadzenStack Gap="8">
+                        <RadzenText>Filter by Activity Type</RadzenText>
+                        <RadzenDropDown @bind-Value="@_selectedType" Data="@_activityTypes"
+                            Change="@OnTypeFilterChanged" Placeholder="All Types" Style="width: 200px" />
+                    </RadzenStack>
+                </RadzenColumn>
+                <RadzenColumn Size="6" AlignItems="AlignItems.End">
+                    <RadzenStack Horizontal="true" Gap="12">
+                        <RadzenButton Text="Today" ButtonStyle="ButtonStyle.Secondary"
+                            Click="@GoToToday" />
+                        <RadzenButton Text="Schedule New" ButtonStyle="ButtonStyle.Primary"
+                            Icon="add" Click="@OpenScheduleDialog" />
+                    </RadzenStack>
+                </RadzenColumn>
+            </RadzenRow>
+
+            <RadzenDataGrid @ref="_grid" Data="@_filteredSchedules" TItem="ScheduleDisplay"
+                AllowPaging="true" AllowSorting="true" PageSize="10">
+                <Columns>
+                    <RadzenDataGridColumn TItem="ScheduleDisplay" Property="ActivityName" Title="Activity" Sortable="true" />
+                    <RadzenDataGridColumn TItem="ScheduleDisplay" Property="GuideName" Title="Guide" Sortable="true" />
+                    <RadzenDataGridColumn TItem="ScheduleDisplay" Property="ScheduledDate" Title="Date" Sortable="true">
+                        <Template Context="item">
+                            @item.ScheduledDate.ToShortDateString()
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="ScheduleDisplay" Property="StartTime" Title="Start Time" Sortable="true" />
+                    <RadzenDataGridColumn TItem="ScheduleDisplay" Property="EndTime" Title="End Time" Sortable="true" />
+                    <RadzenDataGridColumn TItem="ScheduleDisplay" Property="Capacity" Title="Capacity" Sortable="true" />
+                    <RadzenDataGridColumn TItem="ScheduleDisplay" Property="BookedCount" Title="Booked" Sortable="true" />
+                    <RadzenDataGridColumn TItem="ScheduleDisplay" Property="Status" Title="Status" Sortable="true">
+                        <Template Context="item">
+                            <RadzenBadge BadgeStyle="@GetStatusStyle(item.Status)" Text="@item.Status" />
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenStack>
+    </RadzenCard>
+</RadzenStack>
+
+@code {
+    private RadzenDataGrid<ScheduleDisplay>? _grid;
+    private List<ScheduleDisplay> _allSchedules = new();
+    private List<ScheduleDisplay> _filteredSchedules = new();
+    private DateTime _selectedDate = DateTime.Today;
+    private ActivityType? _selectedType;
+
+    private List<ActivityType> _activityTypes = Enum.GetValues<ActivityType>().ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        var schedules = await ActivityService.GetSchedulesAsync(_selectedDate);
+        var activities = await ActivityService.GetActivitiesAsync();
+        var guides = await ActivityService.GetGuidesAsync();
+
+        _allSchedules = schedules.Select(s =>
+        {
+            var activity = activities.FirstOrDefault(a => a.Id == s.ActivityId);
+            var guide = s.GuideId.HasValue ? guides.FirstOrDefault(g => g.Id == s.GuideId.Value) : null;
+            return new ScheduleDisplay
+            {
+                Id = s.Id,
+                ActivityId = s.ActivityId,
+                ActivityName = activity?.Name ?? "Unknown",
+                ActivityType = activity?.Type,
+                GuideName = guide?.Name ?? "Unassigned",
+                ScheduledDate = s.ScheduledDate,
+                StartTime = s.StartTime,
+                EndTime = s.EndTime,
+                Capacity = s.Capacity,
+                BookedCount = s.BookedCount,
+                Status = s.Status
+            };
+        }).ToList();
+
+        ApplyFilter();
+    }
+
+    private void ApplyFilter()
+    {
+        _filteredSchedules = _allSchedules;
+        if (_selectedType.HasValue)
+        {
+            _filteredSchedules = _filteredSchedules
+                .Where(s => s.ActivityType == _selectedType.Value).ToList();
+        }
+    }
+
+    private async Task OnDateChanged(DateTime? date)
+    {
+        if (date.HasValue)
+        {
+            _selectedDate = date.Value;
+            await LoadData();
+        }
+    }
+
+    private void OnTypeFilterChanged(object? value)
+    {
+        _selectedType = value as ActivityType?;
+        ApplyFilter();
+    }
+
+    private async Task GoToToday()
+    {
+        _selectedDate = DateTime.Today;
+        await LoadData();
+    }
+
+    private async Task OpenScheduleDialog()
+    {
+        var schedule = await DialogService.OpenAsync<NewScheduleDialog>("Schedule New Activity",
+            new Dictionary<string, object>(),
+            new DialogOptions { Width = "600px", Resizable = true, Draggable = true });
+
+        if (schedule is BookingBackendWebApp.Models.ActivitySchedule newSchedule)
+        {
+            await ActivityService.CreateScheduleAsync(newSchedule);
+            await LoadData();
+            NotificationService.Notify(NotificationSeverity.Success, "Activity scheduled successfully");
+        }
+    }
+
+    private BadgeStyle GetStatusStyle(string status) => status switch
+    {
+        "Confirmed" => BadgeStyle.Success,
+        "Cancelled" => BadgeStyle.Danger,
+        "Completed" => BadgeStyle.Info,
+        "Pending" => BadgeStyle.Warning,
+        _ => BadgeStyle.Light
+    };
+
+    private class ScheduleDisplay
+    {
+        public int Id { get; set; }
+        public int ActivityId { get; set; }
+        public string ActivityName { get; set; } = string.Empty;
+        public ActivityType? ActivityType { get; set; }
+        public string GuideName { get; set; } = string.Empty;
+        public DateTime ScheduledDate { get; set; }
+        public TimeSpan StartTime { get; set; }
+        public TimeSpan EndTime { get; set; }
+        public int Capacity { get; set; }
+        public int BookedCount { get; set; }
+        public string Status { get; set; } = string.Empty;
+    }
+}

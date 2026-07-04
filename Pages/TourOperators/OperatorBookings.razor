@@ -1,0 +1,121 @@
+@page "/tour-operators/bookings"
+@using BookingBackendWebApp.Services.TourOperators
+@inject ITourOperatorService TourOperatorService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<RadzenCard class="mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <RadzenText TextStyle="TextStyle.H5">Operator Bookings</RadzenText>
+        <div style="width:300px">
+            <RadzenDropDown @bind-Value="@selectedOperatorId" Data="@operators"
+                TextProperty="Name" ValueProperty="Id" Placeholder="Filter by operator"
+                Change="@OnOperatorFilterChange" AllowClear="true" Style="width:100%" />
+        </div>
+    </div>
+
+    <RadzenDataGrid Data="@filteredSettlements" TItem="Settlement" AllowPaging="true" PageSize="10" AllowSorting="true">
+        <Columns>
+            <RadzenDataGridColumn TItem="Settlement" Title="Operator" Sortable="true">
+                <Template Context="s">
+                    @GetOperatorName(s.OperatorId)
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="Settlement" Property="Id" Title="Booking Ref" Sortable="true">
+                <Template Context="s">
+                    @($"SET-{s.Id:D4}")
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="Settlement" Title="Period" Sortable="true">
+                <Template Context="s">
+                    @s.PeriodStart.ToString("yyyy-MM-dd") - @s.PeriodEnd.ToString("yyyy-MM-dd")
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="Settlement" Property="TotalCommission" Title="Commission" Sortable="true">
+                <Template Context="s">
+                    @($"{s.TotalCommission:N2}")
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="Settlement" Property="PaidAmount" Title="Paid" Sortable="true">
+                <Template Context="s">
+                    @($"{s.PaidAmount:N2}")
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="Settlement" Property="Status" Title="Status" Sortable="true">
+                <Template Context="s">
+                    @{
+                        var style = s.Status switch
+                        {
+                            "Approved" => BadgeStyle.Success,
+                            "Pending" => BadgeStyle.Warning,
+                            "Paid" => BadgeStyle.Info,
+                            _ => BadgeStyle.Light
+                        };
+                    }
+                    <RadzenBadge BadgeStyle="@style" Size="BadgeSize.Small">@s.Status</RadzenBadge>
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="Settlement" Title="Actions" Width="120px">
+                <Template Context="s">
+                    @if (s.Status == "Pending")
+                    {
+                        <RadzenButton Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Success"
+                            Click="@(() => ApproveSettlement(s))">Approve</RadzenButton>
+                    }
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+</RadzenCard>
+
+@code {
+    private List<Settlement> settlements = new();
+    private List<Settlement> filteredSettlements = new();
+    private List<TourOperator> operators = new();
+    private int? selectedOperatorId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        operators = await TourOperatorService.GetOperatorsAsync();
+        settlements = await TourOperatorService.GetSettlementsAsync();
+        ApplyFilter();
+    }
+
+    private void OnOperatorFilterChange(object? value)
+    {
+        selectedOperatorId = value as int?;
+        ApplyFilter();
+    }
+
+    private void ApplyFilter()
+    {
+        filteredSettlements = selectedOperatorId.HasValue
+            ? settlements.Where(s => s.OperatorId == selectedOperatorId.Value).ToList()
+            : settlements;
+    }
+
+    private string GetOperatorName(int operatorId)
+    {
+        return operators.FirstOrDefault(o => o.Id == operatorId)?.Name ?? "Unknown";
+    }
+
+    private async Task ApproveSettlement(Settlement settlement)
+    {
+        var result = await DialogService.Confirm(
+            $"Approve settlement SET-{settlement.Id:D4}?",
+            "Confirm Approval",
+            new ConfirmOptions { OkButtonText = "Approve", CancelButtonText = "Cancel" });
+
+        if (result == true)
+        {
+            await TourOperatorService.ApproveSettlementAsync(settlement.Id);
+            await LoadData();
+            NotificationService.Notify(NotificationSeverity.Success, "Settlement approved");
+        }
+    }
+}

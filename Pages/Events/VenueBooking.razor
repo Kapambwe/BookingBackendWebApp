@@ -1,0 +1,138 @@
+@page "/events/venues"
+@attribute [Authorize]
+@using BookingBackendWebApp.Services.Events
+@inject IEventService EventService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<RadzenCard>
+    <RadzenCardHeader>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:1.25rem;font-weight:500">Venue Booking</span>
+            <div style="display:flex;gap:8px">
+                <RadzenDatePicker @bind-Value="_dateRangeStart" DateFormat="yyyy-MM-dd" Style="width:160px" />
+                <RadzenDatePicker @bind-Value="_dateRangeEnd" DateFormat="yyyy-MM-dd" Style="width:160px" />
+                <RadzenButton Text="Filter" ButtonStyle="ButtonStyle.Primary" Click="@LoadVenues" />
+            </div>
+        </div>
+    </RadzenCardHeader>
+
+    <RadzenCardContent>
+        <RadzenDataGrid @ref="_grid" Data="@_venues" TItem="Venue" AllowFiltering="true" AllowSorting="true" AllowPaging="true" PageSize="10">
+            <Columns>
+                <RadzenDataGridColumn TItem="Venue" Property="Name" Title="Name" Filterable="true" Sortable="true" />
+                <RadzenDataGridColumn TItem="Venue" Property="Capacity" Title="Capacity" Filterable="false" Sortable="true" />
+                <RadzenDataGridColumn TItem="Venue" Property="Location" Title="Location" Filterable="true" Sortable="true" />
+                <RadzenDataGridColumn TItem="Venue" Property="HourlyRate" Title="Hourly Rate" Filterable="false" Sortable="true">
+                    <Template Context="v">
+                        @v.HourlyRate.ToString("C")
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Venue" Property="HasCatering" Title="Catering" Filterable="false" Sortable="false">
+                    <Template Context="v">
+                        <RadzenIcon Icon="@(v.HasCatering ? "check_circle" : "cancel")" Style="@GetStatusIconStyle(v.HasCatering)" />
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Venue" Property="HasEquipment" Title="Equipment" Filterable="false" Sortable="false">
+                    <Template Context="v">
+                        <RadzenIcon Icon="@(v.HasEquipment ? "check_circle" : "cancel")" Style="@GetStatusIconStyle(v.HasEquipment)" />
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Venue" Property="IsAvailable" Title="Available" Filterable="false" Sortable="false">
+                    <Template Context="v">
+                        <RadzenBadge BadgeStyle="@(v.IsAvailable ? BadgeStyle.Success : BadgeStyle.Danger)" Text="@(v.IsAvailable ? "Yes" : "No")" />
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Venue" Title="Actions" Filterable="false" Sortable="false" Width="120px">
+                    <Template Context="v">
+                        <RadzenButton Text="Book" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small" Click="@(() => OpenBookDialog(v))" Disabled="@(!v.IsAvailable)" />
+                    </Template>
+                </RadzenDataGridColumn>
+            </Columns>
+        </RadzenDataGrid>
+    </RadzenCardContent>
+</RadzenCard>
+
+<RadzenDialog @bind-Visible="_showBookDialog" Title="Book Venue" Style="min-width:500px">
+    <RadzenCard>
+        <div style="display:flex;flex-direction:column;gap:16px">
+            <div><strong>Venue:</strong> @_selectedVenue?.Name</div>
+            <div><strong>Rate:</strong> @_selectedVenue?.HourlyRate.ToString("C") / hour</div>
+            <RadzenTextBox @bind-Value="_booking.EventName" Placeholder="Event Name" />
+            <RadzenTextBox @bind-Value="_booking.Organizer" Placeholder="Organizer" />
+            <RadzenDatePicker @bind-Value="_booking.StartDate" DateFormat="yyyy-MM-dd HH:mm" ShowTime="true" Placeholder="Start Date" />
+            <RadzenDatePicker @bind-Value="_booking.EndDate" DateFormat="yyyy-MM-dd HH:mm" ShowTime="true" Placeholder="End Date" />
+            <RadzenNumeric @bind-Value="_booking.AttendeeCount" Placeholder="Attendees" Min="1" />
+            <RadzenCheckBox @bind-Value="_booking.CateringRequired" Text="Catering Required" />
+            <RadzenCheckBoxList @bind-Value="_selectedEquipment" TextProperty="Name" ValueProperty="Name" Data="@_equipmentOptions" Orientation="Orientation.Horizontal" />
+            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+                <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Secondary" Click="@(() => _showBookDialog = false)" />
+                <RadzenButton Text="Confirm Booking" ButtonStyle="ButtonStyle.Primary" Click="@ConfirmBooking" />
+            </div>
+        </div>
+    </RadzenCard>
+</RadzenDialog>
+
+@code {
+    private RadzenDataGrid<Venue>? _grid;
+    private List<Venue> _venues = new();
+    private Venue? _selectedVenue;
+    private bool _showBookDialog;
+    private DateTime _dateRangeStart = DateTime.Today;
+    private DateTime _dateRangeEnd = DateTime.Today.AddMonths(1);
+
+    private EventBooking _booking = new();
+    private IEnumerable<string> _selectedEquipment = new List<string>();
+    private List<string> _equipmentOptions = new() { "Projector", "Screen", "PA System", "Whiteboard", "Stage", "Lighting" };
+
+    private string GetStatusIconStyle(bool hasItem) => $"color: {(hasItem ? "#4caf50" : "#f44336")}";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadVenues();
+    }
+
+    private async Task LoadVenues()
+    {
+        try
+        {
+            _venues = await EventService.GetVenuesAsync();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Error", $"Failed to load venues: {ex.Message}");
+        }
+    }
+
+    private void OpenBookDialog(Venue venue)
+    {
+        _selectedVenue = venue;
+        _booking = new EventBooking
+        {
+            VenueId = venue.Id,
+            StartDate = DateTime.Today.AddDays(1),
+            EndDate = DateTime.Today.AddDays(1).AddHours(4),
+            AttendeeCount = 1,
+            Status = "Pending"
+        };
+        _selectedEquipment = new List<string>();
+        _showBookDialog = true;
+    }
+
+    private async Task ConfirmBooking()
+    {
+        _booking.EquipmentList = _selectedEquipment.ToList();
+        _booking.TotalCost = _selectedVenue!.HourlyRate * (decimal)(_booking.EndDate - _booking.StartDate).TotalHours;
+
+        try
+        {
+            await EventService.CreateEventBookingAsync(_booking);
+            NotificationService.Notify(NotificationSeverity.Success, "Success", $"Venue '{_selectedVenue.Name}' booked successfully");
+            _showBookDialog = false;
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Error", $"Booking failed: {ex.Message}");
+        }
+    }
+}

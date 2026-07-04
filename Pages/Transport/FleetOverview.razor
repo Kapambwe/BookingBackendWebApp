@@ -1,0 +1,158 @@
+@page "/transport"
+@using BookingBackendWebApp.Services.Transport
+@inject ITransportService TransportService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<div class="row g-3 mb-4">
+    <div class="col-3">
+        <RadzenCard>
+            <div class="text-center p-3">
+                <RadzenText TextStyle="TextStyle.H4">@totalVehicles</RadzenText>
+                <RadzenText TextStyle="TextStyle.Subtitle2">Total Vehicles</RadzenText>
+            </div>
+        </RadzenCard>
+    </div>
+    <div class="col-3">
+        <RadzenCard>
+            <div class="text-center p-3">
+                <RadzenText TextStyle="TextStyle.H4">@availableVehicles</RadzenText>
+                <RadzenText TextStyle="TextStyle.Subtitle2">Available</RadzenText>
+            </div>
+        </RadzenCard>
+    </div>
+    <div class="col-3">
+        <RadzenCard>
+            <div class="text-center p-3">
+                <RadzenText TextStyle="TextStyle.H4">@inUseVehicles</RadzenText>
+                <RadzenText TextStyle="TextStyle.Subtitle2">In Use</RadzenText>
+            </div>
+        </RadzenCard>
+    </div>
+    <div class="col-3">
+        <RadzenCard>
+            <div class="text-center p-3">
+                <RadzenText TextStyle="TextStyle.H4">@maintenanceVehicles</RadzenText>
+                <RadzenText TextStyle="TextStyle.Subtitle2">Maintenance</RadzenText>
+            </div>
+        </RadzenCard>
+    </div>
+</div>
+
+<RadzenCard>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <RadzenText TextStyle="TextStyle.H5">Fleet Overview</RadzenText>
+        <div class="d-flex gap-2">
+            <RadzenDropDown @bind-Value="@selectedType" Data="@vehicleTypes"
+                Placeholder="All Types" Change="@OnFilterChange" AllowClear="true" Style="width:180px" />
+            <RadzenDropDown @bind-Value="@selectedStatus" Data="@vehicleStatuses"
+                Placeholder="All Statuses" Change="@OnFilterChange" AllowClear="true" Style="width:180px" />
+        </div>
+    </div>
+    <RadzenDataGrid Data="@filteredVehicles" TItem="Vehicle" AllowPaging="true" PageSize="10" AllowSorting="true">
+        <Columns>
+            <RadzenDataGridColumn TItem="Vehicle" Property="Name" Title="Vehicle Name" Sortable="true" />
+            <RadzenDataGridColumn TItem="Vehicle" Property="RegistrationNumber" Title="Registration" Sortable="true" />
+            <RadzenDataGridColumn TItem="Vehicle" Property="VehicleType" Title="Type" Sortable="true">
+                <Template Context="v">
+                    @(v.VehicleType.ToString())
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="Vehicle" Property="Capacity" Title="Capacity" Sortable="true" />
+            <RadzenDataGridColumn TItem="Vehicle" Property="Status" Title="Status" Sortable="true">
+                <Template Context="v">
+                    @{
+                        var badgeStyle = v.Status switch
+                        {
+                            VehicleStatus.Available => BadgeStyle.Success,
+                            VehicleStatus.InUse => BadgeStyle.Primary,
+                            VehicleStatus.Maintenance => BadgeStyle.Warning,
+                            VehicleStatus.OutOfService => BadgeStyle.Danger,
+                            _ => BadgeStyle.Light
+                        };
+                    }
+                    <RadzenBadge BadgeStyle="@badgeStyle" Size="BadgeSize.Small">@v.Status.ToString()</RadzenBadge>
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="Vehicle" Title="Fuel Level" Sortable="true">
+                <Template Context="v">
+                    <div class="d-flex align-items-center gap-2">
+                        <RadzenProgressBar Value="@(v.FuelLevel * 100)" Max="100" Style="width:80px" />
+                        <span>@($"{v.FuelLevel:P0}")</span>
+                    </div>
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="Vehicle" Title="Service Due" Sortable="true">
+                <Template Context="v">
+                    @{
+                        var dueDate = v.NextServiceDue;
+                        var isOverdue = dueDate.HasValue && dueDate.Value <= DateTime.Today;
+                    }
+                    @if (dueDate.HasValue)
+                    {
+                        <span class="@(isOverdue ? "text-danger fw-bold" : "")">
+                            @dueDate.Value.ToString("yyyy-MM-dd")
+                        </span>
+                    }
+                    else
+                    {
+                        <span>N/A</span>
+                    }
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+</RadzenCard>
+
+@code {
+    private List<Vehicle> vehicles = new();
+    private List<Vehicle> filteredVehicles = new();
+    private int totalVehicles;
+    private int availableVehicles;
+    private int inUseVehicles;
+    private int maintenanceVehicles;
+
+    private VehicleType? selectedType;
+    private VehicleStatus? selectedStatus;
+
+    private List<VehicleType> vehicleTypes = Enum.GetValues<VehicleType>().ToList();
+    private List<VehicleStatus> vehicleStatuses = Enum.GetValues<VehicleStatus>().ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        vehicles = await TransportService.GetVehiclesAsync();
+        totalVehicles = vehicles.Count;
+        availableVehicles = vehicles.Count(v => v.Status == VehicleStatus.Available);
+        inUseVehicles = vehicles.Count(v => v.Status == VehicleStatus.InUse);
+        maintenanceVehicles = vehicles.Count(v => v.Status == VehicleStatus.Maintenance);
+        ApplyFilter();
+    }
+
+    private void OnFilterChange(object? value)
+    {
+        ApplyFilter();
+    }
+
+    private void ApplyFilter()
+    {
+        filteredVehicles = vehicles.Where(v =>
+            (!selectedType.HasValue || v.VehicleType == selectedType.Value) &&
+            (!selectedStatus.HasValue || v.Status == selectedStatus.Value)
+        ).ToList();
+    }
+
+    private BadgeStyle GetFuelBadgeStyle(double fuelLevel)
+    {
+        return fuelLevel switch
+        {
+            <= 0.25 => BadgeStyle.Danger,
+            <= 0.5 => BadgeStyle.Warning,
+            _ => BadgeStyle.Success
+        };
+    }
+}

@@ -1,0 +1,118 @@
+@page "/tour-operators"
+@using BookingBackendWebApp.Services.TourOperators
+@inject ITourOperatorService TourOperatorService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+@inject NavigationManager NavigationManager
+
+<div class="row g-3 mb-4">
+    <div class="col-3">
+        <RadzenCard>
+            <div class="text-center p-3">
+                <RadzenText TextStyle="TextStyle.H4">@totalOperators</RadzenText>
+                <RadzenText TextStyle="TextStyle.Subtitle2">Total Operators</RadzenText>
+            </div>
+        </RadzenCard>
+    </div>
+    <div class="col-3">
+        <RadzenCard>
+            <div class="text-center p-3">
+                <RadzenText TextStyle="TextStyle.H4">@activeOperators</RadzenText>
+                <RadzenText TextStyle="TextStyle.Subtitle2">Active</RadzenText>
+            </div>
+        </RadzenCard>
+    </div>
+    <div class="col-3">
+        <RadzenCard>
+            <div class="text-center p-3">
+                <RadzenText TextStyle="TextStyle.H4">@totalBookings</RadzenText>
+                <RadzenText TextStyle="TextStyle.Subtitle2">Total Bookings</RadzenText>
+            </div>
+        </RadzenCard>
+    </div>
+    <div class="col-3">
+        <RadzenCard>
+            <div class="text-center p-3">
+                <RadzenText TextStyle="TextStyle.H4">@($"{totalRevenue:N2}")</RadzenText>
+                <RadzenText TextStyle="TextStyle.Subtitle2">Total Revenue</RadzenText>
+            </div>
+        </RadzenCard>
+    </div>
+</div>
+
+<RadzenCard>
+    <RadzenDataGrid Data="@operators" TItem="TourOperator" AllowPaging="true" PageSize="10" AllowSorting="true">
+        <Columns>
+            <RadzenDataGridColumn TItem="TourOperator" Property="Name" Title="Name" Sortable="true" />
+            <RadzenDataGridColumn TItem="TourOperator" Property="ContactPerson" Title="Contact" Sortable="true" />
+            <RadzenDataGridColumn TItem="TourOperator" Property="CommissionRate" Title="Commission Rate" Sortable="true">
+                <Template Context="op">
+                    @($"{op.CommissionRate:P}")
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="TourOperator" Property="IsActive" Title="Status" Sortable="true">
+                <Template Context="op">
+                    <RadzenBadge BadgeStyle="@(op.IsActive ? BadgeStyle.Success : BadgeStyle.Light)" Size="BadgeSize.Small">
+                        @(op.IsActive ? "Active" : "Inactive")
+                    </RadzenBadge>
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="TourOperator" Property="TotalBookings" Title="Bookings" Sortable="true" />
+            <RadzenDataGridColumn TItem="TourOperator" Property="TotalRevenue" Title="Revenue" Sortable="true">
+                <Template Context="op">
+                    @($"{op.TotalRevenue:N2}")
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="TourOperator" Title="Actions" Width="180px">
+                <Template Context="op">
+                    <RadzenButton Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Primary"
+                        Click="@(() => EditOperator(op))">Edit</RadzenButton>
+                    <RadzenButton Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Secondary"
+                        Click="@(() => ViewDetails(op))">Details</RadzenButton>
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+</RadzenCard>
+
+@code {
+    private List<TourOperator> operators = new();
+    private int totalOperators;
+    private int activeOperators;
+    private int totalBookings;
+    private decimal totalRevenue;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        operators = await TourOperatorService.GetOperatorsAsync();
+        totalOperators = operators.Count;
+        activeOperators = operators.Count(o => o.IsActive);
+        totalBookings = operators.Sum(o => o.TotalBookings);
+        totalRevenue = operators.Sum(o => o.TotalRevenue);
+    }
+
+    private async Task EditOperator(TourOperator op)
+    {
+        var result = await DialogService.Confirm(
+            $"Are you sure you want to toggle status for {op.Name}?",
+            "Edit Operator",
+            new ConfirmOptions { OkButtonText = "Toggle Status", CancelButtonText = "Cancel" });
+
+        if (result == true)
+        {
+            await TourOperatorService.ToggleOperatorStatusAsync(op.Id);
+            await LoadData();
+            NotificationService.Notify(NotificationSeverity.Success, $"{op.Name} status updated");
+        }
+    }
+
+    private void ViewDetails(TourOperator op)
+    {
+        NavigationManager.NavigateTo($"/tour-operators/{op.Id}");
+    }
+}

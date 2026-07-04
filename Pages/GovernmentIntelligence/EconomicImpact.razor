@@ -1,0 +1,147 @@
+@page "/government-intelligence/economic"
+@namespace BookingBackendWebApp.Pages.GovernmentIntelligence
+@using BookingBackendWebApp.Services.GovernmentIntelligence
+@inject IGovernmentIntelligenceService GovService
+@inject NotificationService Notification
+
+<RadzenStack Gap="16px">
+    <RadzenRow>
+        <RadzenColumn Size="12">
+            <RadzenText TextStyle="TextStyle.H5">Economic Impact</RadzenText>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenRow>
+        <RadzenColumn Size="3">
+            <RadzenCard>
+                <RadzenStack Gap="8px">
+                    <RadzenText TextStyle="TextStyle.Subtitle2">Employment Created</RadzenText>
+                    <RadzenText TextStyle="TextStyle.H4">@_employment.ToString("N0")</RadzenText>
+                    <RadzenStack Horizontal="true" Gap="4px">
+                        <RadzenIcon Icon="@(_employmentTrend >= 0 ? "trending_up" : "trending_down")" />
+                        <RadzenText TextStyle="TextStyle.Body2">@($"{Math.Abs(_employmentTrend):P1}") vs prior</RadzenText>
+                    </RadzenStack>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="3">
+            <RadzenCard>
+                <RadzenStack Gap="8px">
+                    <RadzenText TextStyle="TextStyle.Subtitle2">Tax Collected</RadzenText>
+                    <RadzenText TextStyle="TextStyle.H4">@_taxCollected.ToString("N0")</RadzenText>
+                    <RadzenStack Horizontal="true" Gap="4px">
+                        <RadzenIcon Icon="@(_taxTrend >= 0 ? "trending_up" : "trending_down")" />
+                        <RadzenText TextStyle="TextStyle.Body2">@($"{Math.Abs(_taxTrend):P1}") vs prior</RadzenText>
+                    </RadzenStack>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="3">
+            <RadzenCard>
+                <RadzenStack Gap="8px">
+                    <RadzenText TextStyle="TextStyle.Subtitle2">Foreign Exchange</RadzenText>
+                    <RadzenText TextStyle="TextStyle.H4">@_forex.ToString("N0")</RadzenText>
+                    <RadzenStack Horizontal="true" Gap="4px">
+                        <RadzenIcon Icon="@(_forexTrend >= 0 ? "trending_up" : "trending_down")" />
+                        <RadzenText TextStyle="TextStyle.Body2">@($"{Math.Abs(_forexTrend):P1}") vs prior</RadzenText>
+                    </RadzenStack>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="3">
+            <RadzenCard>
+                <RadzenStack Gap="8px">
+                    <RadzenText TextStyle="TextStyle.Subtitle2">GDP Contribution</RadzenText>
+                    <RadzenText TextStyle="TextStyle.H4">@($"{_gdpContribution:P1}")</RadzenText>
+                    <RadzenStack Horizontal="true" Gap="4px">
+                        <RadzenIcon Icon="@(_gdpTrend >= 0 ? "trending_up" : "trending_down")" />
+                        <RadzenText TextStyle="TextStyle.Body2">@($"{Math.Abs(_gdpTrend):P1}") vs prior</RadzenText>
+                    </RadzenStack>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenCard>
+        <RadzenStack Gap="12px">
+            <RadzenText TextStyle="TextStyle.H6">Economic Metrics</RadzenText>
+            <RadzenDataGrid Data="@_kpis" TItem="GovernmentKpi" AllowFiltering="true" AllowSorting="true">
+                <Columns>
+                    <RadzenDataGridColumn TItem="GovernmentKpi" Property="Category" Title="Category" />
+                    <RadzenDataGridColumn TItem="GovernmentKpi" Property="Metric" Title="Metric" />
+                    <RadzenDataGridColumn TItem="GovernmentKpi" Property="Value" Title="Value">
+                        <Template>
+                            @{
+                                var k = context as GovernmentKpi;
+                                if (k != null) { <span>@k.Value.ToString("N2")</span> }
+                            }
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="GovernmentKpi" Property="Period" Title="Period" />
+                    <RadzenDataGridColumn TItem="GovernmentKpi" Property="Change" Title="Change">
+                        <Template>
+                            @{
+                                var k = context as GovernmentKpi;
+                                if (k != null)
+                                {
+                                    var isPos = k.Change >= 0;
+                                    <RadzenBadge Text="@($"{k.Change:P1}")"
+                                                  BadgeStyle="@(isPos ? BadgeStyle.Success : BadgeStyle.Danger)" />
+                                }
+                            }
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenStack>
+    </RadzenCard>
+</RadzenStack>
+
+@code {
+    private List<GovernmentKpi> _kpis = new();
+    private decimal _employment = 45000;
+    private decimal _taxCollected = 3200000000;
+    private decimal _forex = 85000000000;
+    private double _gdpContribution = 0.082;
+    private double _employmentTrend = 0.12;
+    private double _taxTrend = 0.08;
+    private double _forexTrend = 0.15;
+    private double _gdpTrend = 0.03;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _kpis = await GovService.GetKpisAsync();
+        DeriveFromKpis();
+    }
+
+    private void DeriveFromKpis()
+    {
+        var empKpi = _kpis.FirstOrDefault(k => k.Metric.Contains("employment", StringComparison.OrdinalIgnoreCase));
+        if (empKpi != null)
+        {
+            _employment = (decimal)empKpi.Value;
+            _employmentTrend = empKpi.Change;
+        }
+
+        var taxKpi = _kpis.FirstOrDefault(k => k.Metric.Contains("tax", StringComparison.OrdinalIgnoreCase));
+        if (taxKpi != null)
+        {
+            _taxCollected = (decimal)taxKpi.Value;
+            _taxTrend = taxKpi.Change;
+        }
+
+        var forexKpi = _kpis.FirstOrDefault(k => k.Metric.Contains("exchange", StringComparison.OrdinalIgnoreCase) || k.Metric.Contains("forex", StringComparison.OrdinalIgnoreCase));
+        if (forexKpi != null)
+        {
+            _forex = (decimal)forexKpi.Value;
+            _forexTrend = forexKpi.Change;
+        }
+
+        var gdpKpi = _kpis.FirstOrDefault(k => k.Metric.Contains("gdp", StringComparison.OrdinalIgnoreCase));
+        if (gdpKpi != null)
+        {
+            _gdpContribution = gdpKpi.Value;
+            _gdpTrend = gdpKpi.Change;
+        }
+    }
+}

@@ -1,0 +1,185 @@
+@page "/events"
+@attribute [Authorize]
+@using BookingBackendWebApp.Services.Events
+@inject IEventService EventService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<RadzenCard>
+    <RadzenCardHeader>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:1.25rem;font-weight:500">Event Management</span>
+            <RadzenButton Text="Create Event" ButtonStyle="ButtonStyle.Primary" Icon="add" Click="@OpenCreateDialog" />
+        </div>
+    </RadzenCardHeader>
+    <RadzenCardContent>
+        <RadzenDataGrid @ref="_grid" Data="@_bookings" TItem="EventBooking" AllowFiltering="true" AllowSorting="true" AllowPaging="true" PageSize="10">
+            <Columns>
+                <RadzenDataGridColumn TItem="EventBooking" Property="EventName" Title="Event Name" Filterable="true" Sortable="true" />
+                <RadzenDataGridColumn TItem="EventBooking" Title="Venue" Filterable="true" Sortable="true">
+                    <Template Context="b">
+                        @_venues.FirstOrDefault(v => v.Id == b.VenueId)?.Name ?? $"Venue #{b.VenueId}"
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="EventBooking" Property="Organizer" Title="Organizer" Filterable="true" Sortable="true" />
+                <RadzenDataGridColumn TItem="EventBooking" Property="StartDate" Title="Date" Filterable="false" Sortable="true">
+                    <Template Context="b">
+                        @b.StartDate.ToString("yyyy-MM-dd HH:mm")
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="EventBooking" Property="AttendeeCount" Title="Attendees" Filterable="false" Sortable="true" />
+                <RadzenDataGridColumn TItem="EventBooking" Property="Status" Title="Status" Filterable="true" Sortable="true">
+                    <Template Context="b">
+                        <RadzenBadge BadgeStyle="@GetStatusVariant(b.Status)" Text="@b.Status" />
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="EventBooking" Title="Actions" Filterable="false" Sortable="false" Width="180px">
+                    <Template Context="b">
+                        <RadzenButton Text="Edit" ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Small" Click="@(() => OpenEditDialog(b))" />
+                        <RadzenButton Text="Confirm" ButtonStyle="ButtonStyle.Success" Size="ButtonSize.Small" Click="@(() => ConfirmBooking(b))" Visible="@(b.Status == "Pending")" />
+                        <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small" Click="@(() => CancelBooking(b))" Visible="@(b.Status != "Cancelled")" />
+                    </Template>
+                </RadzenDataGridColumn>
+            </Columns>
+        </RadzenDataGrid>
+    </RadzenCardContent>
+</RadzenCard>
+
+<RadzenDialog @bind-Visible="_showDialog" Title="@(_isEditing ? "Edit Event" : "Create Event")" Style="min-width:550px">
+    <RadzenCard>
+        <div style="display:flex;flex-direction:column;gap:16px">
+            <RadzenTextBox @bind-Value="_formEvent.EventName" Placeholder="Event Name" />
+            <RadzenTextBox @bind-Value="_formEvent.Organizer" Placeholder="Organizer" />
+            <RadzenDropDown @bind-Value="_formEvent.VenueId" Data="@_venues" TextProperty="Name" ValueProperty="Id" Placeholder="Select Venue" />
+            <RadzenDatePicker @bind-Value="_formEvent.StartDate" DateFormat="yyyy-MM-dd HH:mm" ShowTime="true" Placeholder="Start Date" />
+            <RadzenDatePicker @bind-Value="_formEvent.EndDate" DateFormat="yyyy-MM-dd HH:mm" ShowTime="true" Placeholder="End Date" />
+            <RadzenNumeric @bind-Value="_formEvent.AttendeeCount" Placeholder="Attendees" Min="1" />
+            <RadzenCheckBox @bind-Value="_formEvent.CateringRequired" Text="Catering Required" />
+            <RadzenCheckBoxList @bind-Value="_formEquipment" TextProperty="Name" ValueProperty="Name" Data="@_equipmentOptions" Orientation="Orientation.Horizontal" />
+            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+                <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Secondary" Click="@(() => _showDialog = false)" />
+                <RadzenButton Text="Save" ButtonStyle="ButtonStyle.Primary" Click="@SaveEvent" />
+            </div>
+        </div>
+    </RadzenCard>
+</RadzenDialog>
+
+@code {
+    private RadzenDataGrid<EventBooking>? _grid;
+    private List<EventBooking> _bookings = new();
+    private List<Venue> _venues = new();
+    private bool _showDialog;
+    private bool _isEditing;
+    private EventBooking _formEvent = new();
+    private IEnumerable<string> _formEquipment = new List<string>();
+    private List<string> _equipmentOptions = new() { "Projector", "Screen", "PA System", "Whiteboard", "Stage", "Lighting" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            _bookings = await EventService.GetEventBookingsAsync();
+            _venues = await EventService.GetVenuesAsync();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Error", $"Failed to load data: {ex.Message}");
+        }
+    }
+
+    private void OpenCreateDialog()
+    {
+        _isEditing = false;
+        _formEvent = new EventBooking
+        {
+            StartDate = DateTime.Today.AddDays(1),
+            EndDate = DateTime.Today.AddDays(1).AddHours(4),
+            Status = "Pending"
+        };
+        _formEquipment = new List<string>();
+        _showDialog = true;
+    }
+
+    private void OpenEditDialog(EventBooking booking)
+    {
+        _isEditing = true;
+        _formEvent = new EventBooking
+        {
+            Id = booking.Id,
+            VenueId = booking.VenueId,
+            EventName = booking.EventName,
+            Organizer = booking.Organizer,
+            StartDate = booking.StartDate,
+            EndDate = booking.EndDate,
+            AttendeeCount = booking.AttendeeCount,
+            CateringRequired = booking.CateringRequired,
+            TotalCost = booking.TotalCost,
+            Status = booking.Status
+        };
+        _formEquipment = booking.EquipmentList.ToList();
+        _showDialog = true;
+    }
+
+    private async Task SaveEvent()
+    {
+        _formEvent.EquipmentList = _formEquipment.ToList();
+        var venue = _venues.FirstOrDefault(v => v.Id == _formEvent.VenueId);
+        _formEvent.TotalCost = venue?.HourlyRate * (decimal)(_formEvent.EndDate - _formEvent.StartDate).TotalHours ?? 0;
+
+        try
+        {
+            await EventService.CreateEventBookingAsync(_formEvent);
+            NotificationService.Notify(NotificationSeverity.Success, "Success", $"Event '{_formEvent.EventName}' saved");
+            _showDialog = false;
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Error", $"Failed to save event: {ex.Message}");
+        }
+    }
+
+    private async Task ConfirmBooking(EventBooking booking)
+    {
+        try
+        {
+            await EventService.ConfirmEventBookingAsync(booking.Id);
+            NotificationService.Notify(NotificationSeverity.Success, "Success", "Event confirmed");
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Error", $"Confirmation failed: {ex.Message}");
+        }
+    }
+
+    private async Task CancelBooking(EventBooking booking)
+    {
+        var confirmed = await DialogService.Confirm($"Cancel event '{booking.EventName}'?", "Confirm Cancel", new ConfirmOptions { OkButtonText = "Yes", CancelButtonText = "No" });
+        if (confirmed != true) return;
+
+        try
+        {
+            await EventService.CancelEventBookingAsync(booking.Id);
+            NotificationService.Notify(NotificationSeverity.Success, "Success", "Event cancelled");
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Error", $"Cancellation failed: {ex.Message}");
+        }
+    }
+
+    private BadgeStyle GetStatusVariant(string status) => status switch
+    {
+        "Confirmed" => BadgeStyle.Success,
+        "Pending" => BadgeStyle.Warning,
+        "Cancelled" => BadgeStyle.Danger,
+        _ => BadgeStyle.Light
+    };
+}

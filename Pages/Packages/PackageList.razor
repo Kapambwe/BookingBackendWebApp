@@ -1,0 +1,101 @@
+@page "/packages"
+@namespace BookingBackendWebApp.Pages.Packages
+@inject IPackageService PackageService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+@inject NavigationManager NavigationManager
+
+<RadzenCard>
+    <div style="display:flex;gap:16px;padding:8px 0;">
+        <div style="flex:1;text-align:center;padding:16px;border-radius:8px;background:var(--rz-surface-card);">
+            <div style="font-size:28px;font-weight:700;color:var(--rz-primary);">@totalPackages</div>
+            <div style="color:var(--rz-text-secondary);font-size:13px;">Total Packages</div>
+        </div>
+        <div style="flex:1;text-align:center;padding:16px;border-radius:8px;background:var(--rz-surface-card);">
+            <div style="font-size:28px;font-weight:700;color:var(--rz-success);">@activePackages</div>
+            <div style="color:var(--rz-text-secondary);font-size:13px;">Active</div>
+        </div>
+        <div style="flex:1;text-align:center;padding:16px;border-radius:8px;background:var(--rz-surface-card);">
+            <div style="font-size:28px;font-weight:700;color:var(--rz-info);">@avgPrice.ToString("N0")</div>
+            <div style="color:var(--rz-text-secondary);font-size:13px;">Avg Price (KES)</div>
+        </div>
+    </div>
+</RadzenCard>
+
+<RadzenCard>
+    <RadzenButton Text="Create Package" ButtonStyle="ButtonStyle.Primary" Icon="add" Click="@(() => NavigationManager.NavigateTo("/packages/builder"))" />
+</RadzenCard>
+
+<RadzenCard>
+    <RadzenDataGrid @ref="grid" TItem="Package" Data="@packages" AllowPaging="true" PageSize="10" AllowSorting="true" AllowFiltering="false">
+        <Columns>
+            <RadzenDataGridColumn TItem="Package" Property="Name" Title="Name" Sortable="true" Width="200px" />
+            <RadzenDataGridColumn TItem="Package" Title="Tier" Sortable="true" SortProperty="Tier" Width="120px">
+                <Template Context="p">
+                    <RadzenBadge Text="@p.Tier.ToString()" BadgeStyle="@GetTierBadge(p.Tier)" />
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="Package" Title="Base Price" Sortable="true" SortProperty="BasePrice" Width="140px">
+                <Template Context="p">@p.BasePrice.ToString("N0") KES</Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="Package" Property="PeakMultiplier" Title="Peak" Sortable="true" Width="100px">
+                <Template Context="p">@p.PeakMultiplier.ToString("F1")x</Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="Package" Title="Status" Sortable="true" SortProperty="IsActive" Width="100px">
+                <Template Context="p">
+                    <RadzenBadge Text="@(p.IsActive ? "Active" : "Inactive")" BadgeStyle="@(p.IsActive ? BadgeStyle.Success : BadgeStyle.Light)" />
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="Package" Title="Actions" Width="180px">
+                <Template Context="p">
+                    <RadzenButton ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small" Icon="edit" Tooltip="Edit" Click="@(() => NavigationManager.NavigateTo($"/packages/builder/{p.Id}"))" />
+                    <RadzenButton ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small" Icon="delete" Tooltip="Delete" Click="@(() => DeletePackage(p))" />
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+</RadzenCard>
+
+@code {
+    private RadzenDataGrid<Package>? grid;
+    private List<Package> packages = new();
+    private int totalPackages;
+    private int activePackages;
+    private decimal avgPrice;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPackages();
+    }
+
+    private async Task LoadPackages()
+    {
+        packages = await PackageService.GetPackagesAsync();
+        totalPackages = packages.Count;
+        activePackages = packages.Count(p => p.IsActive);
+        avgPrice = packages.Count > 0 ? packages.Average(p => p.BasePrice) : 0;
+    }
+
+    private BadgeStyle GetTierBadge(PackageTier tier) => tier switch
+    {
+        PackageTier.Bronze => BadgeStyle.Warning,
+        PackageTier.Silver => BadgeStyle.Secondary,
+        PackageTier.Gold => BadgeStyle.Info,
+        PackageTier.Platinum => BadgeStyle.Primary,
+        _ => BadgeStyle.Light
+    };
+
+    private async Task DeletePackage(Package pkg)
+    {
+        var confirmed = await DialogService.Confirm(
+            $"Are you sure you want to delete \"{pkg.Name}\"?",
+            "Confirm Delete",
+            new ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
+        if (confirmed == true)
+        {
+            await PackageService.DeletePackageAsync(pkg.Id);
+            await LoadPackages();
+            NotificationService.Notify(NotificationSeverity.Success, "Deleted", $"Package \"{pkg.Name}\" has been deleted.");
+        }
+    }
+}

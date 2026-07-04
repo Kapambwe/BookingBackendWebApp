@@ -1,0 +1,167 @@
+@page "/accommodation/housekeeping"
+@namespace BookingBackendWebApp.Pages.Accommodation
+@inject IAccommodationService AccommodationService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<RadzenCard>
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;">Housekeeping Task Board</h3>
+        <RadzenButton Text="New Task" ButtonStyle="ButtonStyle.Primary" Icon="add" Click="@OpenCreateDialog" />
+    </div>
+</RadzenCard>
+
+<RadzenCard>
+    <RadzenDataGrid TItem="TaskViewModel" Data="@tasks" AllowPaging="true" PageSize="15" AllowSorting="true">
+        <Columns>
+            <RadzenDataGridColumn TItem="TaskViewModel" Title="Room" Sortable="true" SortProperty="RoomNumber" Width="100px">
+                <Template Context="t"><strong>@t.RoomNumber</strong></Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="TaskViewModel" Property="AssignedTo" Title="Assigned To" Sortable="true" Width="160px" />
+            <RadzenDataGridColumn TItem="TaskViewModel" Title="Status" Sortable="true" SortProperty="Status" Width="130px">
+                <Template Context="t">
+                    <RadzenBadge Text="@t.Status.ToString()" BadgeStyle="@GetStatusBadge(t.Status)" />
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="TaskViewModel" Title="Scheduled Date" Sortable="true" SortProperty="ScheduledDate" Width="140px">
+                <Template Context="t">@t.ScheduledDate.ToString("dd MMM yyyy")</Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="TaskViewModel" Property="Notes" Title="Notes" Sortable="false" Width="250px" />
+            <RadzenDataGridColumn TItem="TaskViewModel" Title="Actions" Width="200px">
+                <Template Context="t">
+                    @if (t.Status == HousekeepingStatus.Pending)
+                    {
+                        <RadzenButton ButtonStyle="ButtonStyle.Info" Size="ButtonSize.Small" Text="Start" Icon="play_arrow" Click="@(() => StartTask(t))" />
+                    }
+                    @if (t.Status == HousekeepingStatus.InProgress)
+                    {
+                        <RadzenButton ButtonStyle="ButtonStyle.Success" Size="ButtonSize.Small" Text="Complete" Icon="check" Click="@(() => CompleteTask(t))" />
+                    }
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+</RadzenCard>
+
+@if (showCreateDialog)
+{
+    <RadzenDialog>
+        <RadzenCard Style="min-width:400px;">
+            <RadzenContentContainer>
+                <h4>New Housekeeping Task</h4>
+
+                <RadzenLabel Text="Room" Component="taskRoom" />
+                <RadzenDropDown @bind-Value="@newTask.RoomId" Data="@rooms" TextProperty="RoomNumber" ValueProperty="Id" Id="taskRoom" />
+
+                <RadzenLabel Text="Assigned To" Component="taskAssigned" />
+                <RadzenTextBox @bind-Value="@newTask.AssignedTo" Id="taskAssigned" Placeholder="Staff name" />
+
+                <RadzenLabel Text="Scheduled Date" Component="taskDate" />
+                <RadzenDatePicker @bind-Value="@newTask.ScheduledDate" Id="taskDate" />
+
+                <RadzenLabel Text="Notes" Component="taskNotes" />
+                <RadzenTextArea @bind-Value="@newTask.Notes" Id="taskNotes" Rows="2" Style="width:100%;" Placeholder="e.g. Deep cleaning, linen change" />
+
+                <div style="margin-top:16px;display:flex;gap:8px;">
+                    <RadzenButton Text="Create" ButtonStyle="ButtonStyle.Primary" Click="@CreateTask" />
+                    <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Secondary" Click="@(() => showCreateDialog = false)" />
+                </div>
+            </RadzenContentContainer>
+        </RadzenCard>
+    </RadzenDialog>
+}
+
+@code {
+    private class TaskViewModel
+    {
+        public int Id { get; set; }
+        public string RoomNumber { get; set; } = string.Empty;
+        public string AssignedTo { get; set; } = string.Empty;
+        public HousekeepingStatus Status { get; set; }
+        public DateTime ScheduledDate { get; set; }
+        public string Notes { get; set; } = string.Empty;
+    }
+
+    private List<TaskViewModel> tasks = new();
+    private List<Room> rooms = new();
+    private HousekeepingTask newTask = new()
+    {
+        ScheduledDate = DateTime.Today,
+        Status = HousekeepingStatus.Pending
+    };
+    private bool showCreateDialog;
+
+    protected override async Task OnInitializedAsync()
+    {
+        rooms = await AccommodationService.GetRoomsAsync();
+        await LoadTasks();
+    }
+
+    private async Task LoadTasks()
+    {
+        var houseTasks = await AccommodationService.GetHousekeepingTasksAsync();
+        tasks = houseTasks.Select(t => new TaskViewModel
+        {
+            Id = t.Id,
+            RoomNumber = rooms.FirstOrDefault(r => r.Id == t.RoomId)?.RoomNumber ?? $"Room #{t.RoomId}",
+            AssignedTo = t.AssignedTo,
+            Status = t.Status,
+            ScheduledDate = t.ScheduledDate,
+            Notes = t.Notes
+        }).ToList();
+    }
+
+    private BadgeStyle GetStatusBadge(HousekeepingStatus status) => status switch
+    {
+        HousekeepingStatus.Pending => BadgeStyle.Warning,
+        HousekeepingStatus.InProgress => BadgeStyle.Info,
+        HousekeepingStatus.Completed => BadgeStyle.Success,
+        _ => BadgeStyle.Light
+    };
+
+    private void OpenCreateDialog()
+    {
+        newTask = new HousekeepingTask
+        {
+            ScheduledDate = DateTime.Today,
+            Status = HousekeepingStatus.Pending
+        };
+        showCreateDialog = true;
+    }
+
+    private async Task CreateTask()
+    {
+        if (newTask.RoomId <= 0) return;
+        await AccommodationService.CreateHousekeepingTaskAsync(newTask);
+        showCreateDialog = false;
+        await LoadTasks();
+        NotificationService.Notify(NotificationSeverity.Success, "Created", "Housekeeping task has been created.");
+    }
+
+    private async Task StartTask(TaskViewModel tvm)
+    {
+        tvm.Status = HousekeepingStatus.InProgress;
+        var tasks = await AccommodationService.GetHousekeepingTasksAsync();
+        var original = tasks.FirstOrDefault(t => t.Id == tvm.Id);
+        if (original is not null) original.Status = HousekeepingStatus.InProgress;
+        NotificationService.Notify(NotificationSeverity.Success, "Started", $"Task for room {tvm.RoomNumber} is now in progress.");
+    }
+
+    private async Task CompleteTask(TaskViewModel tvm)
+    {
+        var confirmed = await DialogService.Confirm($"Mark task for room {tvm.RoomNumber} as complete?", "Confirm",
+            new ConfirmOptions { OkButtonText = "Complete" });
+        if (confirmed == true)
+        {
+            await AccommodationService.CompleteHousekeepingTaskAsync(tvm.Id);
+            tvm.Status = HousekeepingStatus.Completed;
+            NotificationService.Notify(NotificationSeverity.Success, "Completed", $"Task for room {tvm.RoomNumber} is done.");
+        }
+    }
+
+    private async Task<HousekeepingTask?> GetOriginalTask(int id)
+    {
+        var all = await AccommodationService.GetHousekeepingTasksAsync();
+        return all.FirstOrDefault(t => t.Id == id);
+    }
+}

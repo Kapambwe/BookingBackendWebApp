@@ -1,0 +1,201 @@
+@page "/transport/scheduling"
+@using BookingBackendWebApp.Services.Transport
+@inject ITransportService TransportService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<RadzenCard class="mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <RadzenText TextStyle="TextStyle.H5">Transport Schedule</RadzenText>
+        <RadzenButton ButtonStyle="ButtonStyle.Primary" Click="@(() => ShowCreateDialog())">Create Schedule</RadzenButton>
+    </div>
+
+    <div class="mb-3" style="width:250px">
+        <RadzenDatePicker @bind-Value="@selectedDate" Change="@OnDateChange" DateFormat="yyyy-MM-dd" Style="width:100%" />
+    </div>
+
+    <RadzenDataGrid Data="@schedules" TItem="TransportSchedule" AllowPaging="true" PageSize="10" AllowSorting="true">
+        <Columns>
+            <RadzenDataGridColumn TItem="TransportSchedule" Title="Vehicle" Sortable="true">
+                <Template Context="s">
+                    @GetVehicleName(s.VehicleId)
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="TransportSchedule" Title="Driver" Sortable="true">
+                <Template Context="s">
+                    @GetDriverName(s.DriverId)
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="TransportSchedule" Property="Route" Title="Route" Sortable="true" />
+            <RadzenDataGridColumn TItem="TransportSchedule" Property="Date" Title="Date" Sortable="true">
+                <Template Context="s">
+                    @s.Date.ToString("yyyy-MM-dd")
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="TransportSchedule" Property="StartTime" Title="Start" Sortable="true">
+                <Template Context="s">
+                    @s.StartTime.ToString(@"hh\:mm")
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="TransportSchedule" Property="EndTime" Title="End" Sortable="true">
+                <Template Context="s">
+                    @s.EndTime.ToString(@"hh\:mm")
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="TransportSchedule" Property="Status" Title="Status" Sortable="true">
+                <Template Context="s">
+                    @{
+                        var style = s.Status switch
+                        {
+                            "Scheduled" => BadgeStyle.Primary,
+                            "InProgress" => BadgeStyle.Warning,
+                            "Completed" => BadgeStyle.Success,
+                            "Cancelled" => BadgeStyle.Danger,
+                            _ => BadgeStyle.Light
+                        };
+                    }
+                    <RadzenBadge BadgeStyle="@style" Size="BadgeSize.Small">@s.Status</RadzenBadge>
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="TransportSchedule" Title="Actions" Width="120px">
+                <Template Context="s">
+                    @if (s.Status == "Scheduled" || s.Status == "InProgress")
+                    {
+                        <RadzenButton Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Success"
+                            Click="@(() => CompleteTrip(s))">Complete</RadzenButton>
+                    }
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+</RadzenCard>
+
+@if (showCreateDialog)
+{
+    <RadzenDialog Style="position:fixed;z-index:2000">
+        <RadzenCard Style="width:550px">
+            <RadzenText TextStyle="TextStyle.H5" Style="margin-bottom:1rem">Create Schedule</RadzenText>
+            <RadzenTemplateForm TItem="TransportSchedule" Model="@newSchedule" Submit="@SaveSchedule">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <RadzenLabel Component="VehicleSelect" Text="Vehicle" />
+                        <RadzenDropDown @bind-Value="@newSchedule.VehicleId" Data="@vehicles"
+                            TextProperty="Name" ValueProperty="Id" Name="VehicleSelect" Style="width:100%" />
+                    </div>
+                    <div class="col-6">
+                        <RadzenLabel Component="DriverSelect" Text="Driver" />
+                        <RadzenDropDown @bind-Value="@newSchedule.DriverId" Data="@drivers"
+                            TextProperty="Name" ValueProperty="Id" Name="DriverSelect" Style="width:100%" />
+                    </div>
+                    <div class="col-12">
+                        <RadzenLabel Component="RouteInput" Text="Route" />
+                        <RadzenTextBox @bind-Value="@newSchedule.Route" Name="RouteInput" Style="width:100%" />
+                    </div>
+                    <div class="col-6">
+                        <RadzenLabel Component="DateInput" Text="Date" />
+                        <RadzenDatePicker @bind-Value="@newSchedule.Date" Name="DateInput" Style="width:100%" />
+                    </div>
+                    <div class="col-3">
+                        <RadzenLabel Component="StartInput" Text="Start Time" />
+                        <RadzenDatePicker @bind-Value="@startTime" Name="StartInput" DateFormat="HH:mm" DatePickerType="DatePickerType.Time" Style="width:100%" />
+                    </div>
+                    <div class="col-3">
+                        <RadzenLabel Component="EndInput" Text="End Time" />
+                        <RadzenDatePicker @bind-Value="@endTime" Name="EndInput" DateFormat="HH:mm" DatePickerType="DatePickerType.Time" Style="width:100%" />
+                    </div>
+                </div>
+                <div class="d-flex justify-content-end gap-2 mt-3">
+                    <RadzenButton ButtonStyle="ButtonStyle.Secondary" Click="@(() => showCreateDialog = false)">Cancel</RadzenButton>
+                    <RadzenButton ButtonStyle="ButtonStyle.Primary" ButtonType="ButtonType.Submit">Save</RadzenButton>
+                </div>
+            </RadzenTemplateForm>
+        </RadzenCard>
+    </RadzenDialog>
+}
+
+@code {
+    private List<TransportSchedule> schedules = new();
+    private List<Vehicle> vehicles = new();
+    private List<Driver> drivers = new();
+    private DateTime selectedDate = DateTime.Today;
+    private bool showCreateDialog;
+    private TransportSchedule newSchedule = new();
+    private DateTime? startTime;
+    private DateTime? endTime;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        vehicles = await TransportService.GetVehiclesAsync();
+        drivers = await TransportService.GetDriversAsync();
+        await LoadSchedules();
+    }
+
+    private async Task LoadSchedules()
+    {
+        schedules = await TransportService.GetSchedulesAsync(selectedDate);
+    }
+
+    private async Task OnDateChange(DateTime? date)
+    {
+        if (date.HasValue)
+        {
+            selectedDate = date.Value;
+            await LoadSchedules();
+        }
+    }
+
+    private string GetVehicleName(int vehicleId)
+    {
+        return vehicles.FirstOrDefault(v => v.Id == vehicleId)?.Name ?? $"Vehicle #{vehicleId}";
+    }
+
+    private string GetDriverName(int driverId)
+    {
+        return drivers.FirstOrDefault(d => d.Id == driverId)?.Name ?? $"Driver #{driverId}";
+    }
+
+    private void ShowCreateDialog()
+    {
+        newSchedule = new TransportSchedule
+        {
+            Date = selectedDate,
+            Status = "Scheduled"
+        };
+        startTime = null;
+        endTime = null;
+        showCreateDialog = true;
+    }
+
+    private async Task SaveSchedule()
+    {
+        if (startTime.HasValue)
+            newSchedule.StartTime = startTime.Value.TimeOfDay;
+        if (endTime.HasValue)
+            newSchedule.EndTime = endTime.Value.TimeOfDay;
+
+        await TransportService.CreateScheduleAsync(newSchedule);
+        showCreateDialog = false;
+        await LoadSchedules();
+        NotificationService.Notify(NotificationSeverity.Success, "Schedule created");
+    }
+
+    private async Task CompleteTrip(TransportSchedule schedule)
+    {
+        var result = await DialogService.Confirm(
+            $"Complete trip on {schedule.Route}?",
+            "Confirm Completion",
+            new ConfirmOptions { OkButtonText = "Complete", CancelButtonText = "Cancel" });
+
+        if (result == true)
+        {
+            await TransportService.CompleteTripAsync(schedule.Id);
+            await LoadSchedules();
+            NotificationService.Notify(NotificationSeverity.Success, "Trip completed");
+        }
+    }
+}

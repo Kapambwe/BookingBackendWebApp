@@ -1,0 +1,590 @@
+@page "/reservations/{Id:int}"
+@attribute [Authorize(Policy = "BookingViewAll")]
+@using Microsoft.AspNetCore.Authorization
+@inject IBookingService BookingService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+@inject ISecurityService SecurityService
+@inject NavigationManager NavigationManager
+
+<RadzenStack Gap="16">
+    <!-- Breadcrumbs / Back button -->
+    <RadzenRow AlignItems="AlignItems.Center">
+        <RadzenColumn Size="6">
+            <RadzenLink Path="/reservations" Icon="arrow_back" Text="Back to Reservations" Style="font-weight: 500; font-size: 0.95rem; color: #00897B;" />
+        </RadzenColumn>
+        <RadzenColumn Size="6" Style="text-align: right;">
+            <RadzenText TextStyle="TextStyle.Caption" Style="color: #6c757d;">Last Updated: @(_booking?.UpdatedAt.ToString("g") ?? "N/A")</RadzenText>
+        </RadzenColumn>
+    </RadzenRow>
+
+    @if (_loading)
+    {
+        <RadzenCard>
+            <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="padding: 3rem 0;">
+                <RadzenProgressBar Circular="true" Value="100" ProgressBarStyle="ProgressBarStyle.Primary" />
+                <RadzenText TextStyle="TextStyle.Subtitle2" Style="margin-top: 1rem;">Loading booking details...</RadzenText>
+            </RadzenStack>
+        </RadzenCard>
+    }
+    else if (_booking == null)
+    {
+        <RadzenCard Style="background-color: #fff3cd; border: 1px solid #ffeeba; color: #856404;">
+            <RadzenStack Gap="12" AlignItems="AlignItems.Center" Style="padding: 2rem 0;">
+                <RadzenIcon Icon="warning" Style="font-size: 3rem;" />
+                <RadzenText TextStyle="TextStyle.H5">Booking Not Found</RadzenText>
+                <RadzenText TextStyle="TextStyle.Body1">The requested booking with ID @_id could not be found or has been removed.</RadzenText>
+                <RadzenButton Text="Return to Overview" ButtonStyle="ButtonStyle.Warning" Click="@(() => NavigationManager.NavigateTo("/reservations"))" />
+            </RadzenStack>
+        </RadzenCard>
+    }
+    else
+    {
+        <!-- Header details and Action Bar -->
+        <RadzenCard Style="background: linear-gradient(135deg, #1B2A4A 0%, #0F1A34 100%); color: white; padding: 1.5rem;">
+            <RadzenRow AlignItems="AlignItems.Center" Gap="16">
+                <RadzenColumn Size="12" SizeMD="6">
+                    <RadzenStack Gap="4">
+                        <RadzenStack Direction="FlexDirection.Row" AlignItems="AlignItems.Center" Gap="8">
+                            <RadzenText Tag="H1" TextStyle="TextStyle.H4" Style="margin: 0; color: white; font-weight: 700;">
+                                Booking @_booking.BookingNumber
+                            </RadzenText>
+                            @RenderStatusBadge(_booking.Status)
+                        </RadzenStack>
+                        <RadzenText TextStyle="TextStyle.Subtitle2" Style="color: #a0aec0; margin: 0;">
+                            @GetBookingTypeDisplay(_booking.BookingType) &bull; Guest: @_booking.GuestName &bull; Created: @_booking.CreatedAt.ToString("dd MMM yyyy")
+                        </RadzenText>
+                    </RadzenStack>
+                </RadzenColumn>
+                <RadzenColumn Size="12" SizeMD="6" Style="text-align: right;">
+                    <RadzenStack Gap="8" Direction="FlexDirection.Row" JustifyContent="JustifyContent.End" Wrap="FlexWrap.Wrap">
+                        @if (_canEdit && _booking.Status == BookingStatus.Confirmed)
+                        {
+                            <RadzenButton Text="Check-In Guest" Icon="key" ButtonStyle="ButtonStyle.Success" Size="ButtonSize.Medium"
+                                          Click="@(args => OnCheckIn())" />
+                        }
+                        @if (_canEdit && _booking.Status == BookingStatus.CheckedIn)
+                        {
+                            <RadzenButton Text="Check-Out Guest" Icon="logout" ButtonStyle="ButtonStyle.Info" Size="ButtonSize.Medium"
+                                          Click="@(args => OnCheckOut())" />
+                        }
+                        @if (_canCancel && (_booking.Status == BookingStatus.Pending || _booking.Status == BookingStatus.Confirmed))
+                        {
+                            <RadzenButton Text="Cancel Booking" Icon="cancel" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Medium"
+                                          Click="@(args => OnCancelBooking())" />
+                        }
+                    </RadzenStack>
+                </RadzenColumn>
+            </RadzenRow>
+        </RadzenCard>
+
+        <!-- Main Details Section -->
+        <RadzenRow Gap="16">
+            <!-- Left Column: Guest Info, Booking Details, Invoice -->
+            <RadzenColumn Size="12" SizeLG="7">
+                <RadzenStack Gap="16">
+                    <!-- Guest Profile -->
+                    <RadzenCard>
+                        <RadzenStack Gap="12">
+                            <RadzenStack Direction="FlexDirection.Row" AlignItems="AlignItems.Center" Gap="8">
+                                <RadzenIcon Icon="person" Style="color: #00897B; font-size: 1.25rem;" />
+                                <RadzenText TextStyle="TextStyle.H6" Style="margin: 0; font-weight: 600;">Guest Information</RadzenText>
+                            </RadzenStack>
+                            <hr style="margin: 0 0 8px 0; border: 0; border-top: 1px solid #e2e8f0;" />
+                            <RadzenRow Gap="12">
+                                <RadzenColumn Size="6">
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="color: #718096; margin: 0;">Full Name</RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Body2" Style="font-weight: 500;">@_booking.GuestName</RadzenText>
+                                </RadzenColumn>
+                                <RadzenColumn Size="6">
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="color: #718096; margin: 0;">Nationality</RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Body2" Style="font-weight: 500;">@_booking.Nationality</RadzenText>
+                                </RadzenColumn>
+                                <RadzenColumn Size="6">
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="color: #718096; margin: 0;">Email Address</RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Body2" Style="font-weight: 500;"><a href="mailto:@_booking.GuestEmail">@_booking.GuestEmail</a></RadzenText>
+                                </RadzenColumn>
+                                <RadzenColumn Size="6">
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="color: #718096; margin: 0;">Passport / ID Number</RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Body2" Style="font-weight: 500;">@(!string.IsNullOrEmpty(_booking.PassportNumber) ? _booking.PassportNumber : "N/A")</RadzenText>
+                                </RadzenColumn>
+                                <RadzenColumn Size="6">
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="color: #718096; margin: 0;">Phone Number</RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Body2" Style="font-weight: 500;">@_booking.GuestPhone</RadzenText>
+                                </RadzenColumn>
+                            </RadzenRow>
+
+                            @if (!string.IsNullOrWhiteSpace(_booking.Notes))
+                            {
+                                <div style="margin-top: 8px; padding: 10px; background-color: #f7fafc; border-left: 4px solid #00897B; border-radius: 0 4px 4px 0;">
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="color: #718096; font-weight: 600; margin: 0;">Special Requests / Notes</RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Body2" Style="margin: 4px 0 0 0; font-style: italic;">@_booking.Notes</RadzenText>
+                                </div>
+                            }
+                        </RadzenStack>
+                    </RadzenCard>
+
+                    <!-- Stay & Operational Details -->
+                    <RadzenCard>
+                        <RadzenStack Gap="12">
+                            <RadzenStack Direction="FlexDirection.Row" AlignItems="AlignItems.Center" Gap="8">
+                                <RadzenIcon Icon="hotel" Style="color: #00897B; font-size: 1.25rem;" />
+                                <RadzenText TextStyle="TextStyle.H6" Style="margin: 0; font-weight: 600;">Stay & Operational Details</RadzenText>
+                            </RadzenStack>
+                            <hr style="margin: 0 0 8px 0; border: 0; border-top: 1px solid #e2e8f0;" />
+                            <RadzenRow Gap="12">
+                                <RadzenColumn Size="6">
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="color: #718096; margin: 0;">Reservation Type</RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Body2" Style="font-weight: 500;">@GetBookingTypeDisplay(_booking.BookingType)</RadzenText>
+                                </RadzenColumn>
+                                <RadzenColumn Size="6">
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="color: #718096; margin: 0;">Guests</RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Body2" Style="font-weight: 500;">
+                                        @_booking.Adults Adults @(_booking.Children > 0 ? $", {_booking.Children} Children" : "")
+                                    </RadzenText>
+                                </RadzenColumn>
+                                <RadzenColumn Size="6">
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="color: #718096; margin: 0;">Check-In Date</RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Body2" Style="font-weight: 500;">
+                                        @_booking.CheckInDate.ToString("dd MMM yyyy (dddd)")
+                                    </RadzenText>
+                                </RadzenColumn>
+                                <RadzenColumn Size="6">
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="color: #718096; margin: 0;">Check-Out Date</RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Body2" Style="font-weight: 500;">
+                                        @_booking.CheckOutDate.ToString("dd MMM yyyy (dddd)")
+                                    </RadzenText>
+                                </RadzenColumn>
+                                <RadzenColumn Size="6">
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="color: #718096; margin: 0;">Duration of Stay</RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Body2" Style="font-weight: 500;">
+                                        @GetDurationString(_booking)
+                                    </RadzenText>
+                                </RadzenColumn>
+                                @if (_booking.RoomId.HasValue)
+                                {
+                                    <RadzenColumn Size="6">
+                                        <RadzenText TextStyle="TextStyle.Caption" Style="color: #718096; margin: 0;">Assigned Unit / Room #</RadzenText>
+                                        <RadzenText TextStyle="TextStyle.Body2" Style="font-weight: 500; color: #00897B;">Unit @_booking.RoomId.Value</RadzenText>
+                                    </RadzenColumn>
+                                }
+                                @if (_booking.PackageId.HasValue)
+                                {
+                                    <RadzenColumn Size="6">
+                                        <RadzenText TextStyle="TextStyle.Caption" Style="color: #718096; margin: 0;">Selected Package</RadzenText>
+                                        <RadzenText TextStyle="TextStyle.Body2" Style="font-weight: 500; color: #00897B;">Package ID: @_booking.PackageId.Value</RadzenText>
+                                    </RadzenColumn>
+                                }
+                            </RadzenRow>
+                        </RadzenStack>
+                    </RadzenCard>
+
+                    <!-- Accounts Receivable / Invoice Integration -->
+                    <RadzenCard>
+                        <RadzenStack Gap="12">
+                            <RadzenStack Direction="FlexDirection.Row" AlignItems="AlignItems.Center" Gap="8">
+                                <RadzenIcon Icon="receipt" Style="color: #00897B; font-size: 1.25rem;" />
+                                <RadzenText TextStyle="TextStyle.H6" Style="margin: 0; font-weight: 600;">Financial Integration & AR Invoice</RadzenText>
+                            </RadzenStack>
+                            <hr style="margin: 0 0 8px 0; border: 0; border-top: 1px solid #e2e8f0;" />
+                            
+                            <RadzenRow AlignItems="AlignItems.Center" Gap="16">
+                                <RadzenColumn Size="12" SizeMD="8">
+                                    <RadzenStack Gap="4">
+                                        <RadzenStack Direction="FlexDirection.Row" AlignItems="AlignItems.Center" Gap="8">
+                                            <RadzenText TextStyle="TextStyle.Subtitle2" Style="margin: 0; font-weight: 600;">
+                                                Linked Invoice: INV-2024-@_booking.BookingNumber.Split('-').Last()
+                                            </RadzenText>
+                                            @if (_booking.BalanceAmount == 0)
+                                            {
+                                                <span class="badge badge-success">Paid</span>
+                                            }
+                                            else if (_booking.PaidAmount > 0)
+                                            {
+                                                <span class="badge badge-warning">Partially Paid</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge badge-danger">Unpaid</span>
+                                            }
+                                        </RadzenStack>
+                                        <RadzenText TextStyle="TextStyle.Caption" Style="color: #718096; margin: 0;">
+                                            This booking is integrated with the shared AccountingWebApp gateway. Journal entries, invoicing, tax, and guest receipt reconciliation are automatically synched.
+                                        </RadzenText>
+                                    </RadzenStack>
+                                </RadzenColumn>
+                                <RadzenColumn Size="12" SizeMD="4" Style="text-align: right;">
+                                    <RadzenButton Text="Manage Invoice" Icon="account_balance_wallet" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                                                  Click="@(args => ShowInvoiceNotification())" Style="width: 100%; border: 1px solid #cbd5e0;" />
+                                </RadzenColumn>
+                            </RadzenRow>
+                        </RadzenStack>
+                    </RadzenCard>
+                </RadzenStack>
+            </RadzenColumn>
+
+            <!-- Right Column: Billing Summary, Line Items, Operational Timeline -->
+            <RadzenColumn Size="12" SizeLG="5">
+                <RadzenStack Gap="16">
+                    <!-- Billing Card -->
+                    <RadzenCard Style="background-color: #f7fafc; border: 1px solid #e2e8f0;">
+                        <RadzenStack Gap="12">
+                            <RadzenText TextStyle="TextStyle.Subtitle2" Style="margin: 0; font-weight: 700; color: #2d3748;">Billing Summary (KES)</RadzenText>
+                            
+                            <RadzenRow>
+                                <RadzenColumn Size="6">
+                                    <RadzenText TextStyle="TextStyle.Body2" Style="color: #718096;">Total Price</RadzenText>
+                                    <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; color: #1B2A4A;">@_booking.TotalAmount.ToString("N0")</RadzenText>
+                                </RadzenColumn>
+                                <RadzenColumn Size="6" Style="text-align: right;">
+                                    <RadzenText TextStyle="TextStyle.Body2" Style="color: #718096;">Amount Paid</RadzenText>
+                                    <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; color: #38a169;">@_booking.PaidAmount.ToString("N0")</RadzenText>
+                                </RadzenColumn>
+                            </RadzenRow>
+                            
+                            <hr style="margin: 4px 0; border: 0; border-top: 1px solid #cbd5e0;" />
+                            
+                            <RadzenRow AlignItems="AlignItems.Center">
+                                <RadzenColumn Size="6">
+                                    <RadzenText TextStyle="TextStyle.Body2" Style="color: #718096; font-weight: 600;">Balance Due</RadzenText>
+                                </RadzenColumn>
+                                <RadzenColumn Size="6" Style="text-align: right;">
+                                    <RadzenText TextStyle="TextStyle.H6" Style="@($"font-weight: 700; color: {(_booking.BalanceAmount > 0 ? "#e53e3e" : "#2b6cb0")};")">
+                                        @_booking.BalanceAmount.ToString("N0")
+                                    </RadzenText>
+                                </RadzenColumn>
+                            </RadzenRow>
+
+                            @{
+                                double paymentPercentage = _booking.TotalAmount > 0 ? (double)(_booking.PaidAmount / _booking.TotalAmount * 100) : 0;
+                            }
+                            <RadzenStack Gap="4" Style="margin-top: 4px;">
+                                <RadzenStack Direction="FlexDirection.Row" JustifyContent="JustifyContent.SpaceBetween">
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="color: #718096;">Payment Progress</RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="font-weight: 600; color: #2d3748;">@paymentPercentage.ToString("F0")%</RadzenText>
+                                </RadzenStack>
+                                <RadzenProgressBar Value="@paymentPercentage" ShowValue="false" 
+                                                   ProgressBarStyle="@(paymentPercentage >= 100 ? ProgressBarStyle.Success : paymentPercentage > 0 ? ProgressBarStyle.Warning : ProgressBarStyle.Danger)"
+                                                   Style="height: 6px;" />
+                            </RadzenStack>
+                        </RadzenStack>
+                    </RadzenCard>
+
+                    <!-- Line Items Grid -->
+                    <RadzenCard>
+                        <RadzenStack Gap="12">
+                            <RadzenText TextStyle="TextStyle.Subtitle2" Style="margin: 0; font-weight: 600;">Detailed Charges</RadzenText>
+                            <hr style="margin: 0 0 4px 0; border: 0; border-top: 1px solid #e2e8f0;" />
+                            
+                            @if (_booking.LineItems == null || !_booking.LineItems.Any())
+                            {
+                                <RadzenStack AlignItems="AlignItems.Center" Style="padding: 1rem 0;">
+                                    <RadzenText TextStyle="TextStyle.Body2" Style="color: #a0aec0; font-style: italic;">No line items found. Base pricing applied.</RadzenText>
+                                    <div style="width: 100%; border: 1px solid #edf2f7; padding: 12px; border-radius: 4px; background-color: #f7fafc;">
+                                        <RadzenStack Direction="FlexDirection.Row" JustifyContent="JustifyContent.SpaceBetween">
+                                            <RadzenText TextStyle="TextStyle.Body2" Style="font-weight: 500;">Base Rate Booking Charge</RadzenText>
+                                            <RadzenText TextStyle="TextStyle.Body2" Style="font-weight: 600;">@_booking.TotalAmount.ToString("N0") KES</RadzenText>
+                                        </RadzenStack>
+                                    </div>
+                                </RadzenStack>
+                            }
+                            else
+                            {
+                                <RadzenDataGrid Data="@_booking.LineItems" TItem="BookingLineItem" AllowPaging="false" AllowSorting="false">
+                                    <Columns>
+                                        <RadzenDataGridColumn TItem="BookingLineItem" Property="Description" Title="Item" Width="200px">
+                                            <Template Context="li">
+                                                <RadzenText TextStyle="TextStyle.Body2" Style="font-weight: 500; white-space: normal;">@li.Description</RadzenText>
+                                            </Template>
+                                        </RadzenDataGridColumn>
+                                        <RadzenDataGridColumn TItem="BookingLineItem" Property="Quantity" Title="Qty" Width="50px" TextAlign="TextAlign.Center" />
+                                        <RadzenDataGridColumn TItem="BookingLineItem" Property="TotalPrice" Title="Total" Width="90px" TextAlign="TextAlign.Right">
+                                            <Template Context="li">
+                                                @li.TotalPrice.ToString("N0")
+                                            </Template>
+                                        </RadzenDataGridColumn>
+                                    </Columns>
+                                </RadzenDataGrid>
+                            }
+                        </RadzenStack>
+                    </RadzenCard>
+
+                    <!-- Operational Timeline -->
+                    <RadzenCard>
+                        <RadzenStack Gap="12">
+                            <RadzenText TextStyle="TextStyle.Subtitle2" Style="margin: 0; font-weight: 600;">Operational Timeline</RadzenText>
+                            <hr style="margin: 0 0 8px 0; border: 0; border-top: 1px solid #e2e8f0;" />
+                            
+                            <!-- Timeline container -->
+                            <div style="position: relative; padding-left: 28px; margin-left: 10px;">
+                                <!-- Vertical line -->
+                                <div style="position: absolute; left: 4px; top: 8px; bottom: 8px; width: 2px; background-color: #cbd5e0;"></div>
+
+                                <!-- Milestone 1: Created -->
+                                <div style="position: relative; margin-bottom: 20px;">
+                                    <div style="position: absolute; left: -30px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background-color: #48bb78; border: 3px solid white; box-shadow: 0 0 0 2px #48bb78;"></div>
+                                    <RadzenText TextStyle="TextStyle.Body2" Style="font-weight: 600; margin: 0;">Reservation Created</RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="color: #718096; margin: 0;">@_booking.CreatedAt.ToString("g")</RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="color: #4a5568;">Created on Booking System portal</RadzenText>
+                                </div>
+
+                                <!-- Milestone 2: Payment / Confirmed -->
+                                <div style="position: relative; margin-bottom: 20px;">
+                                    @{
+                                        bool isConfirmedOrPaid = _booking.Status != BookingStatus.Pending && _booking.Status != BookingStatus.Cancelled;
+                                        string col2 = isConfirmedOrPaid ? "#48bb78" : "#a0aec0";
+                                    }
+                                    <div style="position: absolute; left: -30px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background-color: @col2; border: 3px solid white; box-shadow: 0 0 0 2px @col2;"></div>
+                                    <RadzenText TextStyle="TextStyle.Body2" Style="@($"font-weight: 600; margin: 0; color: {(isConfirmedOrPaid ? "#2d3748" : "#718096")};")">
+                                        Confirmed & Invoiced
+                                    </RadzenText>
+                                    @if (isConfirmedOrPaid)
+                                    {
+                                        <RadzenText TextStyle="TextStyle.Caption" Style="color: #718096; margin: 0;">
+                                            @_booking.CreatedAt.AddDays(1).ToString("g")
+                                        </RadzenText>
+                                        <RadzenText TextStyle="TextStyle.Caption" Style="color: #4a5568;">
+                                            Invoice INV-2024-@_booking.BookingNumber.Split('-').Last() posted to gateway
+                                        </RadzenText>
+                                    }
+                                    else
+                                    {
+                                        <RadzenText TextStyle="TextStyle.Caption" Style="color: #a0aec0; margin: 0;">Awaiting confirmation</RadzenText>
+                                    }
+                                </div>
+
+                                <!-- Milestone 3: Check-In -->
+                                <div style="position: relative; margin-bottom: 20px;">
+                                    @{
+                                        bool isCheckedIn = _booking.Status == BookingStatus.CheckedIn || _booking.Status == BookingStatus.CheckedOut;
+                                        string col3 = isCheckedIn ? "#3182ce" : "#a0aec0";
+                                    }
+                                    <div style="position: absolute; left: -30px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background-color: @col3; border: 3px solid white; box-shadow: 0 0 0 2px @col3;"></div>
+                                    <RadzenText TextStyle="TextStyle.Body2" Style="@($"font-weight: 600; margin: 0; color: {(isCheckedIn ? "#2d3748" : "#718096")};")">
+                                        Guest Check-In
+                                    </RadzenText>
+                                    @if (isCheckedIn)
+                                    {
+                                        <RadzenText TextStyle="TextStyle.Caption" Style="color: #718096; margin: 0;">
+                                            @_booking.CheckInDate.ToString("dd MMM yyyy") 12:00 PM
+                                        </RadzenText>
+                                        <RadzenText TextStyle="TextStyle.Caption" Style="color: #4a5568;">Status transitioned to CheckedIn</RadzenText>
+                                    }
+                                    else
+                                    {
+                                        <RadzenText TextStyle="TextStyle.Caption" Style="color: #a0aec0; margin: 0;">Estimated Check-in: @_booking.CheckInDate.ToString("dd MMM yyyy")</RadzenText>
+                                    }
+                                </div>
+
+                                <!-- Milestone 4: Check-Out or Cancelled -->
+                                @if (_booking.Status == BookingStatus.Cancelled)
+                                {
+                                    <div style="position: relative;">
+                                        <div style="position: absolute; left: -30px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background-color: #e53e3e; border: 3px solid white; box-shadow: 0 0 0 2px #e53e3e;"></div>
+                                        <RadzenText TextStyle="TextStyle.Body2" Style="font-weight: 600; margin: 0; color: #e53e3e;">Booking Cancelled</RadzenText>
+                                        <RadzenText TextStyle="TextStyle.Caption" Style="color: #718096; margin: 0;">@_booking.UpdatedAt.ToString("g")</RadzenText>
+                                        <RadzenText TextStyle="TextStyle.Caption" Style="color: #4a5568;">Cancelled by operator request</RadzenText>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div style="position: relative;">
+                                        @{
+                                            bool isCheckedOut = _booking.Status == BookingStatus.CheckedOut;
+                                            string col4 = isCheckedOut ? "#48bb78" : "#a0aec0";
+                                        }
+                                        <div style="position: absolute; left: -30px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background-color: @col4; border: 3px solid white; box-shadow: 0 0 0 2px @col4;"></div>
+                                        <RadzenText TextStyle="TextStyle.Body2" Style="@($"font-weight: 600; margin: 0; color: {(isCheckedOut ? "#2d3748" : "#718096")};")">
+                                            Guest Check-Out & Audit
+                                        </RadzenText>
+                                        @if (isCheckedOut)
+                                        {
+                                            <RadzenText TextStyle="TextStyle.Caption" Style="color: #718096; margin: 0;">
+                                                @_booking.CheckOutDate.ToString("dd MMM yyyy") 10:00 AM
+                                            </RadzenText>
+                                            <RadzenText TextStyle="TextStyle.Caption" Style="color: #4a5568;">Billing finalized and guest cleared</RadzenText>
+                                        }
+                                        else
+                                        {
+                                            <RadzenText TextStyle="TextStyle.Caption" Style="color: #a0aec0; margin: 0;">Estimated Check-out: @_booking.CheckOutDate.ToString("dd MMM yyyy")</RadzenText>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </RadzenStack>
+                    </RadzenCard>
+                </RadzenStack>
+            </RadzenColumn>
+        </RadzenRow>
+    }
+</RadzenStack>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private int _id;
+    private Booking? _booking;
+    private bool _loading = true;
+    private bool _canEdit;
+    private bool _canCancel;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _id = Id;
+        _canEdit = await SecurityService.HasPermissionAsync(BookingBackendPermissions.BookingEdit);
+        _canCancel = await SecurityService.HasPermissionAsync(BookingBackendPermissions.BookingCancel);
+        await LoadBookingAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_id != Id)
+        {
+            _id = Id;
+            await LoadBookingAsync();
+        }
+    }
+
+    private async Task LoadBookingAsync()
+    {
+        _loading = true;
+        try
+        {
+            _booking = await BookingService.GetBookingAsync(_id);
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Error Loading Details",
+                Detail = ex.Message,
+                Duration = 4000
+            });
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OnCheckIn()
+    {
+        if (_booking == null) return;
+        var confirmed = await DialogService.Confirm($"Check in {_booking.GuestName}?", "Confirm Check-In",
+            new ConfirmOptions { OkButtonText = "Check In", CancelButtonText = "Cancel" });
+        if (confirmed != true) return;
+
+        var success = await BookingService.CheckInAsync(_booking.Id);
+        if (success)
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Success,
+                Summary = "Checked In",
+                Detail = $"{_booking.GuestName} has been checked in.",
+                Duration = 4000
+            });
+            await LoadBookingAsync();
+        }
+    }
+
+    private async Task OnCheckOut()
+    {
+        if (_booking == null) return;
+        var confirmed = await DialogService.Confirm($"Check out {_booking.GuestName}?", "Confirm Check-Out",
+            new ConfirmOptions { OkButtonText = "Check Out", CancelButtonText = "Cancel" });
+        if (confirmed != true) return;
+
+        var success = await BookingService.CheckOutAsync(_booking.Id);
+        if (success)
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Success,
+                Summary = "Checked Out",
+                Detail = $"{_booking.GuestName} has been checked out.",
+                Duration = 4000
+            });
+            await LoadBookingAsync();
+        }
+    }
+
+    private async Task OnCancelBooking()
+    {
+        if (_booking == null) return;
+        var confirmed = await DialogService.Confirm($"Cancel booking {_booking.BookingNumber} for {_booking.GuestName}?",
+            "Confirm Cancellation",
+            new ConfirmOptions { OkButtonText = "Cancel Booking", CancelButtonText = "Go Back" });
+        if (confirmed != true) return;
+
+        var success = await BookingService.CancelBookingAsync(_booking.Id);
+        if (success)
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Warning,
+                Summary = "Cancelled",
+                Detail = $"Booking {_booking.BookingNumber} has been cancelled.",
+                Duration = 4000
+            });
+            await LoadBookingAsync();
+        }
+    }
+
+    private void ShowInvoiceNotification()
+    {
+        NotificationService.Notify(new NotificationMessage
+        {
+            Severity = NotificationSeverity.Info,
+            Summary = "Shared Gateway Action",
+            Detail = "Detailed invoice management and reconciliations are performed inside the AccountingWebApp gateway.",
+            Duration = 5000
+        });
+    }
+
+    private static string GetBookingTypeDisplay(BookingType type) => type switch
+    {
+        BookingType.Room => "Room Booking",
+        BookingType.Chalet => "Chalet Stay",
+        BookingType.Tent => "Safari Tent Accommodation",
+        BookingType.Campsite => "Campsite Rental",
+        BookingType.GameDrive => "Guided Game Drive Safari",
+        BookingType.BoatCruise => "Sunset Boat Cruise",
+        BookingType.FishingPermit => "Fishing Permit License",
+        BookingType.HikingPermit => "Hiking Wilderness Permit",
+        BookingType.ParkEntry => "National Park Entry Pass",
+        BookingType.PhotographyPermit => "Wilderness Photography Permit",
+        BookingType.BirdWatching => "Specialist Bird Watching Excursion",
+        BookingType.SafariPackage => "All-inclusive Safari Package",
+        _ => type.ToString()
+    };
+
+    private static string GetDurationString(Booking b)
+    {
+        var duration = b.CheckOutDate - b.CheckInDate;
+        var nights = duration.Days;
+        if (nights <= 0) return "Day Pass / Single Event";
+        return $"{nights} Night{(nights > 1 ? "s" : "")}";
+    }
+
+    private static RenderFragment RenderStatusBadge(BookingStatus status) => builder =>
+    {
+        var (text, style) = status switch
+        {
+            BookingStatus.Confirmed => ("Confirmed", "badge badge-success"),
+            BookingStatus.Pending => ("Pending Confirmation", "badge badge-warning"),
+            BookingStatus.Cancelled => ("Cancelled", "badge badge-danger"),
+            BookingStatus.CheckedIn => ("Checked In", "badge badge-info"),
+            BookingStatus.CheckedOut => ("Checked Out", "badge badge-secondary"),
+            BookingStatus.NoShow => ("No Show", "badge badge-dark"),
+            _ => (status.ToString(), "badge badge-light")
+        };
+        builder.OpenElement(0, "span");
+        builder.AddAttribute(1, "class", style);
+        builder.AddAttribute(2, "style", "font-size: 0.85rem; padding: 6px 12px; border-radius: 4px; vertical-align: middle;");
+        builder.AddContent(3, text);
+        builder.CloseElement();
+    };
+}

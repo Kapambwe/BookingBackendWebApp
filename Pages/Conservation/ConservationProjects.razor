@@ -1,0 +1,208 @@
+@page "/conservation/projects"
+@using BookingBackendWebApp.Services.Conservation
+@inject IConservationService ConservationService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<PageTitle>Conservation Projects</PageTitle>
+
+<RadzenStack Gap="1.5rem">
+    <RadzenRow>
+        <RadzenColumn Size="12">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween">
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.75rem">
+                    <RadzenIcon Icon="eco" IconStyle="IconStyle.Primary" Style="font-size: 1.75rem;" />
+                    <RadzenStack Gap="0.125rem">
+                        <RadzenText TextStyle="TextStyle.H5" TagName="TagName.H1" Style="margin: 0;">Conservation Projects</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0; color: var(--rz-text-secondary-color);">Manage conservation initiatives and budgets</RadzenText>
+                    </RadzenStack>
+                </RadzenStack>
+                <RadzenButton Icon="add" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small" Click="@(() => showProjectForm = !showProjectForm)" Text="@(showProjectForm ? "Cancel" : "New Project")" />
+            </RadzenStack>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenRow Gap="1rem">
+        <RadzenColumn Size="12" SizeMD="3">
+            <RadzenCard class="rz-shadow-3" Style="height: 100%; background: linear-gradient(135deg, #1B2A4A 0%, #00897B 100%);">
+                <RadzenStack Gap="0.5rem">
+                    <RadzenIcon Icon="eco" Style="font-size: 2rem; color: rgba(255,255,255,0.9);" />
+                    <RadzenText TextStyle="TextStyle.H5" Style="color: white; margin: 0; font-weight: 700;">@totalProjects</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: rgba(255,255,255,0.9); margin: 0;">Total Projects</RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMD="3">
+            <RadzenCard class="rz-shadow-3" Style="height: 100%; background: linear-gradient(135deg, #00897B 0%, #4DB6AC 100%);">
+                <RadzenStack Gap="0.5rem">
+                    <RadzenIcon Icon="play_circle" Style="font-size: 2rem; color: rgba(255,255,255,0.9);" />
+                    <RadzenText TextStyle="TextStyle.H5" Style="color: white; margin: 0; font-weight: 700;">@activeProjects</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: rgba(255,255,255,0.9); margin: 0;">Active</RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMD="3">
+            <RadzenCard class="rz-shadow-3" Style="height: 100%; background: linear-gradient(135deg, #4DB6AC 0%, #26A69A 100%);">
+                <RadzenStack Gap="0.5rem">
+                    <RadzenIcon Icon="account_balance" Style="font-size: 2rem; color: rgba(255,255,255,0.9);" />
+                    <RadzenText TextStyle="TextStyle.H5" Style="color: white; margin: 0; font-weight: 700;">@string.Format("{0:N0}", totalBudget)</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: rgba(255,255,255,0.9); margin: 0;">Total Budget (KES)</RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMD="3">
+            <RadzenCard class="rz-shadow-3" Style="height: 100%; background: linear-gradient(135deg, #26A69A 0%, #80CBC4 100%);">
+                <RadzenStack Gap="0.5rem">
+                    <RadzenIcon Icon="receipt" Style="font-size: 2rem; color: rgba(255,255,255,0.9);" />
+                    <RadzenText TextStyle="TextStyle.H5" Style="color: white; margin: 0; font-weight: 700;">@string.Format("{0:N0}", totalSpent)</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: rgba(255,255,255,0.9); margin: 0;">Total Spent (KES)</RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+    </RadzenRow>
+
+    @if (showProjectForm)
+    {
+        <RadzenCard class="rz-shadow-3" Style="background: var(--rz-base-100); border-left: 4px solid #00897B;">
+            <RadzenTemplateForm TItem="ConservationProject" Model="@newProject" Submit="@SaveProject">
+                <RadzenStack Gap="1rem">
+                    <RadzenRow Gap="1rem">
+                        <RadzenColumn Size="12" SizeMD="6">
+                            <RadzenTextBox @bind-Value="@newProject.Name" Placeholder="Project Name" Style="width: 100%;" />
+                        </RadzenColumn>
+                        <RadzenColumn Size="12" SizeMD="3">
+                            <RadzenNumeric @bind-Value="@newProject.Budget" Placeholder="Budget (KES)" Min="0" Step="1000" Style="width: 100%;" />
+                        </RadzenColumn>
+                        <RadzenColumn Size="12" SizeMD="3">
+                            <RadzenNumeric @bind-Value="@newProject.Spent" Placeholder="Spent (KES)" Min="0" Step="1000" Style="width: 100%;" />
+                        </RadzenColumn>
+                    </RadzenRow>
+                    <RadzenRow Gap="1rem">
+                        <RadzenColumn Size="12" SizeMD="4">
+                            <RadzenDatePicker @bind-Value="@newProject.StartDate" Placeholder="Start Date" Style="width: 100%;" />
+                        </RadzenColumn>
+                        <RadzenColumn Size="12" SizeMD="4">
+                            <RadzenDatePicker @bind-Value="@newProject.EndDate" Placeholder="End Date (optional)" Style="width: 100%;" />
+                        </RadzenColumn>
+                        <RadzenColumn Size="12" SizeMD="4">
+                            <RadzenTextBox @bind-Value="@newProject.Status" Placeholder="Status" Style="width: 100%;" />
+                        </RadzenColumn>
+                    </RadzenRow>
+                    <RadzenRow>
+                        <RadzenColumn Size="12">
+                            <RadzenTextBox @bind-Value="@newProject.Description" Placeholder="Project description..." Style="width: 100%;" TextMode="InputType.TextArea" Rows="2" />
+                        </RadzenColumn>
+                    </RadzenRow>
+                    <RadzenRow>
+                        <RadzenColumn Size="12">
+                            <RadzenButton ButtonType="ButtonType.Submit" ButtonStyle="ButtonStyle.Primary" Text="Create Project" />
+                        </RadzenColumn>
+                    </RadzenRow>
+                </RadzenStack>
+            </RadzenTemplateForm>
+        </RadzenCard>
+    }
+
+    <RadzenCard class="rz-shadow-3">
+        <RadzenStack Gap="1rem">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                <RadzenIcon Icon="view_list" IconStyle="IconStyle.Primary" />
+                <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">All Projects</RadzenText>
+                <RadzenBadge BadgeStyle="BadgeStyle.Primary" Text="@($"{projects.Count} projects")" />
+            </RadzenStack>
+            <RadzenDataGrid Data="@projects" TItem="ConservationProject" AllowSorting="true" AllowPaging="true" PageSize="5">
+                <Columns>
+                    <RadzenDataGridColumn Title="Project Name" Property="Name" Width="200px" />
+                    <RadzenDataGridColumn Title="Budget" Width="120px">
+                        <Template Context="p">
+                            <RadzenText TextStyle="TextStyle.Body2" Style="font-weight: 600;">@string.Format("{0:N0}", p.Budget)</RadzenText>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn Title="Spent" Width="120px">
+                        <Template Context="p">
+                            <RadzenText>@string.Format("{0:N0}", p.Spent)</RadzenText>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn Title="Progress" Width="200px">
+                        <Template Context="p">
+                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                                <RadzenProgressBar Value="@(p.Budget > 0 ? (double)p.Spent / (double)p.Budget * 100 : 0)" Max="100" Style="height: 8px; flex: 1;" />
+                                <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0; min-width: 40px;">
+                                    @(p.Budget > 0 ? $"{(double)p.Spent / (double)p.Budget * 100:F0}%" : "0%")
+                                </RadzenText>
+                            </RadzenStack>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn Title="Status" Width="120px">
+                        <Template Context="p">
+                            <RadzenBadge Text="@p.Status" BadgeStyle="@GetProjectStatusBadge(p.Status)" />
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn Title="Timeline" Width="220px">
+                        <Template Context="p">
+                            <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0;">
+                                @p.StartDate.ToString("MMM yyyy") - @(p.EndDate.HasValue ? p.EndDate.Value.ToString("MMM yyyy") : "Ongoing")
+                            </RadzenText>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn Title="Actions" Width="140px">
+                        <Template Context="p">
+                            <RadzenDropDown Data="@projectStatuses" @bind-Value="@p.Status" Change="@(async (s) => await UpdateStatus(p.Id, s?.ToString() ?? ""))" Style="width: 120px;" />
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenStack>
+    </RadzenCard>
+</RadzenStack>
+
+@code {
+    private List<ConservationProject> projects = new();
+    private int totalProjects;
+    private int activeProjects;
+    private decimal totalBudget;
+    private decimal totalSpent;
+    private bool showProjectForm;
+    private ConservationProject newProject = new() { StartDate = DateTime.Today, Status = "Planning" };
+    private string[] projectStatuses = { "Planning", "In Progress", "On Hold", "Completed", "Cancelled" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        projects = await ConservationService.GetProjectsAsync();
+        totalProjects = projects.Count;
+        activeProjects = projects.Count(p => p.Status == "In Progress" || p.Status == "Planning");
+        totalBudget = projects.Sum(p => p.Budget);
+        totalSpent = projects.Sum(p => p.Spent);
+    }
+
+    private async Task SaveProject()
+    {
+        await ConservationService.CreateProjectAsync(newProject);
+        NotificationService.Notify(NotificationSeverity.Success, "Project created successfully");
+        newProject = new() { StartDate = DateTime.Today, Status = "Planning" };
+        showProjectForm = false;
+        await LoadData();
+    }
+
+    private async Task UpdateStatus(int id, string status)
+    {
+        await ConservationService.UpdateProjectStatusAsync(id, status);
+        NotificationService.Notify(NotificationSeverity.Success, "Project status updated");
+        await LoadData();
+    }
+
+    private BadgeStyle GetProjectStatusBadge(string status) => status switch
+    {
+        "In Progress" => BadgeStyle.Info,
+        "Planning" => BadgeStyle.Warning,
+        "Completed" => BadgeStyle.Success,
+        "On Hold" => BadgeStyle.Secondary,
+        "Cancelled" => BadgeStyle.Danger,
+        _ => BadgeStyle.Light
+    };
+}

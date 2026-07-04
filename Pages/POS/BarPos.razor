@@ -1,0 +1,246 @@
+@page "/pos/bar"
+@attribute [Authorize]
+@using BookingBackendWebApp.Services.Pos
+@inject IPosService PosService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <RadzenCard>
+        <RadzenCardHeader>
+            <span style="font-size:1.1rem;font-weight:500">Quick Order</span>
+        </RadzenCardHeader>
+        <RadzenCardContent>
+            <RadzenTabs RenderMode="TabRenderMode.Client" @bind-Value="_selectedTabIndex">
+                <Tabs>
+                    <RadzenTab Text="Food">
+                        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px">
+                            @foreach (var item in FilteredByCategory)
+                            {
+                                <RadzenCard Style="@GetCardStyle(item.IsAvailable)" @onclick="@(() => QuickAddItem(item))">
+                                    <div style="font-weight:500">@item.Name</div>
+                                    <div style="color:#666;font-size:0.85rem">@item.Price.ToString("C")</div>
+                                </RadzenCard>
+                            }
+                        </div>
+                    </RadzenTab>
+                    <RadzenTab Text="Beverage">
+                        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px">
+                            @foreach (var item in FilteredByCategory)
+                            {
+                                <RadzenCard Style="@GetCardStyle(item.IsAvailable)" @onclick="@(() => QuickAddItem(item))">
+                                    <div style="font-weight:500">@item.Name</div>
+                                    <div style="color:#666;font-size:0.85rem">@item.Price.ToString("C")</div>
+                                </RadzenCard>
+                            }
+                        </div>
+                    </RadzenTab>
+                    <RadzenTab Text="Gift">
+                        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px">
+                            @foreach (var item in FilteredByCategory)
+                            {
+                                <RadzenCard Style="@GetCardStyle(item.IsAvailable)" @onclick="@(() => QuickAddItem(item))">
+                                    <div style="font-weight:500">@item.Name</div>
+                                    <div style="color:#666;font-size:0.85rem">@item.Price.ToString("C")</div>
+                                </RadzenCard>
+                            }
+                        </div>
+                    </RadzenTab>
+                    <RadzenTab Text="Curio">
+                        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px">
+                            @foreach (var item in FilteredByCategory)
+                            {
+                                <RadzenCard Style="@GetCardStyle(item.IsAvailable)" @onclick="@(() => QuickAddItem(item))">
+                                    <div style="font-weight:500">@item.Name</div>
+                                    <div style="color:#666;font-size:0.85rem">@item.Price.ToString("C")</div>
+                                </RadzenCard>
+                            }
+                        </div>
+                    </RadzenTab>
+                </Tabs>
+            </RadzenTabs>
+        </RadzenCardContent>
+    </RadzenCard>
+
+    <div style="display:flex;flex-direction:column;gap:16px">
+        <RadzenCard>
+            <RadzenCardHeader>
+                <div style="display:flex;align-items:center;justify-content:space-between">
+                    <span style="font-size:1.1rem;font-weight:500">Open Tabs</span>
+                    <RadzenButton Text="New Tab" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small" Icon="add" Click="@CreateNewTab" />
+                </div>
+            </RadzenCardHeader>
+            <RadzenCardContent>
+                @if (_openTabs.Any())
+                {
+                    <RadzenDataGrid Data="@_openTabs" TItem="PosOrder" AllowSorting="false" AllowPaging="false">
+                        <Columns>
+                            <RadzenDataGridColumn TItem="PosOrder" Title="Tab">
+                                <Template Context="t">Tab #@t.Id</Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn TItem="PosOrder" Property="TotalAmount" Title="Total">
+                                <Template Context="t">@t.TotalAmount.ToString("C")</Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn TItem="PosOrder" Title="Actions">
+                                <Template Context="t">
+                                    <RadzenButton Text="Select" ButtonStyle="ButtonStyle.Info" Size="ButtonSize.Small" Click="@(() => SelectTab(t))" />
+                                    <RadzenButton Text="Close & Pay" ButtonStyle="ButtonStyle.Success" Size="ButtonSize.Small" Click="@(() => CloseTab(t))" />
+                                </Template>
+                            </RadzenDataGridColumn>
+                        </Columns>
+                    </RadzenDataGrid>
+                }
+                else
+                {
+                    <div style="text-align:center;padding:24px;color:#888">No open tabs</div>
+                }
+            </RadzenCardContent>
+        </RadzenCard>
+
+        <RadzenCard>
+            <RadzenCardHeader>
+                <span style="font-size:1.1rem;font-weight:500">@(_selectedTab != null ? $"Tab #{_selectedTab.Id}" : "Payment")</span>
+            </RadzenCardHeader>
+            <RadzenCardContent>
+                @if (_selectedTab != null)
+                {
+                    <RadzenDataGrid Data="@_selectedTab.Items" TItem="PosOrderItem" AllowSorting="false" AllowPaging="false">
+                        <Columns>
+                            <RadzenDataGridColumn TItem="PosOrderItem" Property="Quantity" Title="Qty" Width="60px" />
+                            <RadzenDataGridColumn TItem="PosOrderItem" Title="Item">
+                                <Template Context="i">@(_menuItems.FirstOrDefault(m => m.Id == i.MenuItemId)?.Name ?? $"Item #{i.MenuItemId}")</Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn TItem="PosOrderItem" Property="TotalPrice" Title="Price">
+                                <Template Context="i">@i.TotalPrice.ToString("C")</Template>
+                            </RadzenDataGridColumn>
+                        </Columns>
+                    </RadzenDataGrid>
+                    <div style="margin-top:8px;font-weight:bold;text-align:right">Total: @_selectedTab.TotalAmount.ToString("C")</div>
+                    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+                        <RadzenButton Text="Pay" ButtonStyle="ButtonStyle.Primary" Click="@(() => CloseTab(_selectedTab))" />
+                    </div>
+                }
+                else
+                {
+                    <div style="text-align:center;padding:24px;color:#888">Select a tab to view details</div>
+                }
+            </RadzenCardContent>
+        </RadzenCard>
+    </div>
+</div>
+
+@code {
+    private int _selectedTabIndex;
+
+    private string GetCardStyle(bool isAvailable) =>
+        $"cursor:pointer;opacity:{(isAvailable ? 1 : 0.4)};{(isAvailable ? "background:#f5f5f5" : "background:#eee")}";
+    private List<PosOrder> _openTabs = new();
+    private List<PosMenuItem> _menuItems = new();
+    private PosOrder? _selectedTab;
+
+    private List<PosMenuItem> FilteredByCategory
+    {
+        get
+        {
+            var cat = _selectedTabIndex switch
+            {
+                0 => PosCategory.Food,
+                1 => PosCategory.Beverage,
+                2 => PosCategory.Gift,
+                3 => PosCategory.Curio,
+                _ => PosCategory.Food
+            };
+            return _menuItems.Where(m => m.Category == cat).ToList();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            _menuItems = await PosService.GetMenuItemsAsync();
+            _openTabs = (await PosService.GetOrdersAsync()).Where(o => o.Status == PosOrderStatus.Open).ToList();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Error", $"Failed to load: {ex.Message}");
+        }
+    }
+
+    private async Task CreateNewTab()
+    {
+        try
+        {
+            var order = new PosOrder { TableNumber = 0 };
+            var created = await PosService.CreateOrderAsync(order);
+            _openTabs.Add(created);
+            _selectedTab = created;
+            NotificationService.Notify(NotificationSeverity.Success, "Success", $"Tab #{created.Id} created");
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Error", $"Failed to create tab: {ex.Message}");
+        }
+    }
+
+    private async Task QuickAddItem(PosMenuItem item)
+    {
+        if (!item.IsAvailable)
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Unavailable", $"{item.Name} is not available");
+            return;
+        }
+
+        if (_selectedTab == null)
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Warning", "Select or create a tab first");
+            return;
+        }
+
+        try
+        {
+            var orderItem = new PosOrderItem
+            {
+                MenuItemId = item.Id,
+                Quantity = 1,
+                UnitPrice = item.Price,
+                TotalPrice = item.Price
+            };
+            _selectedTab = await PosService.AddOrderItemAsync(_selectedTab.Id, orderItem);
+            NotificationService.Notify(NotificationSeverity.Success, "Added", $"{item.Name}");
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Error", $"Failed to add item: {ex.Message}");
+        }
+    }
+
+    private void SelectTab(PosOrder tab)
+    {
+        _selectedTab = tab;
+    }
+
+    private async Task CloseTab(PosOrder tab)
+    {
+        var confirm = await DialogService.Confirm($"Close tab #{tab.Id} for {tab.TotalAmount.ToString("C")}?", "Close Tab", new ConfirmOptions { OkButtonText = "Close & Pay", CancelButtonText = "Cancel" });
+        if (confirm != true) return;
+
+        try
+        {
+            await PosService.ProcessPaymentAsync(tab.Id, tab.TotalAmount);
+            NotificationService.Notify(NotificationSeverity.Success, "Success", $"Tab #{tab.Id} closed");
+            _openTabs.Remove(tab);
+            if (_selectedTab == tab) _selectedTab = null;
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Error", $"Failed to close tab: {ex.Message}");
+        }
+    }
+}
